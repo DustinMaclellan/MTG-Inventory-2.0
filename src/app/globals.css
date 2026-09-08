@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #090b0e;
+  --surface: #111419;
+  --surface-raised: #171b21;
+  --foreground: #f4f4f5;
+  --muted: #9398a1;
+  --accent: #4ade80;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,15 +17,80 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+  margin: 0;
+  background-image: radial-gradient(circle at 72% -20%, rgba(52, 211, 153, .08), transparent 34rem);
+}
+
+button, input, select {
+  font: inherit;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  border-radius: .75rem;
+  padding: .65rem .75rem;
+  color: #a1a1aa;
+  font-size: .875rem;
+  transition: color .15s ease, background .15s ease;
+  cursor: pointer;
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,.05);
+  color: white;
+}
+
+.panel {
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 1rem;
+  background: rgba(17,20,25,.86);
+  box-shadow: 0 18px 50px rgba(0,0,0,.15);
+}
+
+.field {
+  width: 100%;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: .75rem;
+  background: #0d1014;
+  padding: .72rem .85rem;
+  color: white;
+  outline: none;
+}
+
+.field:focus {
+  border-color: rgba(74,222,128,.65);
+  box-shadow: 0 0 0 3px rgba(74,222,128,.08);
+}
+
+.button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: .75rem;
+  background: #4ade80;
+  color: #071009;
+  padding: .72rem 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.button-primary:hover {
+  background: #6ee7a0;
+  transform: translateY(-1px);
 }

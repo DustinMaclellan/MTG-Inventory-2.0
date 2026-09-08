@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Mystic Ledger
 
-## Getting Started
+A production-oriented Magic: The Gathering collection and portfolio manager. The Phase 1 MVP uses exact Scryfall printings, real persisted market prices, private user inventories, daily price snapshots, and quantity-weighted valuation.
 
-First, run the development server:
+## Requirements
+
+- Node.js 22+
+- PostgreSQL 15+
+
+## Local setup
+
+1. Copy `.env.example` to `.env` and set `DATABASE_URL`.
+2. Install dependencies with `npm install`.
+3. Apply the database migration with `npm run db:deploy`.
+4. Generate the Prisma client with `npm run db:generate`.
+5. Start the app with `npm run dev`, then open `http://localhost:3000`.
+
+Create an account in the UI. Registration creates a private default collection. Passwords are hashed with Argon2id and sessions use hashed, HTTP-only cookie tokens.
+
+## Card catalog and pricing
+
+The Add Cards page searches the local PostgreSQL catalog first. On a cold catalog, the server fetches real exact-printing data and prices from Scryfall and saves it locally. UI components never call Scryfall directly.
+
+For scheduled catalog warming:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run catalog:sync
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`SCRYFALL_SYNC_PAGES` controls how many search pages are processed per run (default `10`). Schedule multiple bounded runs for a full catalog. Search-driven synchronization keeps a development database useful immediately, while current and daily historical price rows are updated whenever printings synchronize.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Scryfall does not publish condition-specific prices. Mystic Ledger therefore displays the unadjusted printing/finish price and never invents a condition multiplier. Missing prices are shown as unavailable, not `$0`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## CSV
 
-## Learn More
+Use Import / Export in the sidebar. Imports require `card_name`, `set_code`, `collector_number`, `quantity`, `condition`, `finish`, and `language`. A review step reports recognized, unresolved, duplicate, and invalid rows; import stays disabled until every row resolves exactly.
 
-To learn more about Next.js, take a look at the following resources:
+## Quality commands
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run typecheck
+npm run lint
+npm test
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+Deploy the Next.js app to Vercel, Railway, or a compatible Node host and connect a managed PostgreSQL service such as Neon, Supabase, or Railway. Set `DATABASE_URL`, `APP_URL`, `SESSION_COOKIE_SECURE=true`, and an optional `CRON_SECRET`. Run `npm run db:deploy` during release.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See `docs/ARCHITECTURE.md` for service boundaries, identity rules, synchronization, and scaling decisions.

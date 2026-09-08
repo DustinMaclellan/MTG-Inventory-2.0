@@ -1,0 +1,194 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Condition {
+  NEAR_MINT
+  LIGHTLY_PLAYED
+  MODERATELY_PLAYED
+  HEAVILY_PLAYED
+  DAMAGED
+}
+
+enum Finish {
+  NONFOIL
+  FOIL
+  ETCHED
+}
+
+enum PriceProvider {
+  SCRYFALL
+  TCGPLAYER
+  CARDMARKET
+}
+
+enum Currency {
+  USD
+  CAD
+  EUR
+}
+
+model User {
+  id                String       @id @default(cuid())
+  email             String       @unique
+  passwordHash      String
+  displayName       String
+  preferredCurrency Currency     @default(USD)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  sessions          Session[]
+  collections       Collection[]
+
+  @@index([email])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Card {
+  id             String         @id @default(cuid())
+  oracleId       String         @unique
+  name           String
+  normalizedName String
+  typeLine       String?
+  oracleText     String?
+  manaCost       String?
+  colorIdentity  String[]
+  printings      CardPrinting[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([normalizedName])
+  @@index([name])
+}
+
+model MtgSet {
+  id         String         @id @default(cuid())
+  scryfallId String         @unique
+  code       String         @unique
+  name       String
+  setType    String?
+  releasedAt DateTime?
+  iconSvgUri String?
+  printings  CardPrinting[]
+
+  @@index([name])
+}
+
+model CardPrinting {
+  id              String          @id @default(cuid())
+  scryfallId      String          @unique
+  cardId          String
+  setId           String
+  collectorNumber String
+  name            String
+  rarity          String
+  artist          String?
+  language        String          @default("en")
+  releasedAt      DateTime?
+  imageSmallUrl   String?
+  imageNormalUrl  String?
+  finishes        Finish[]
+  promo           Boolean         @default(false)
+  digital         Boolean         @default(false)
+  tcgplayerId     Int?
+  cardmarketId    Int?
+  rawPrices       Json?
+  pricesUpdatedAt DateTime?
+  card            Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  set             MtgSet          @relation(fields: [setId], references: [id], onDelete: Restrict)
+  inventoryItems  InventoryItem[]
+  currentPrices   CurrentPrice[]
+  priceHistory    PriceHistory[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([setId, collectorNumber, language])
+  @@index([cardId])
+  @@index([setId, collectorNumber])
+  @@index([name])
+}
+
+model Collection {
+  id        String          @id @default(cuid())
+  userId    String
+  name      String          @default("My Collection")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     InventoryItem[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model InventoryItem {
+  id               String       @id @default(cuid())
+  collectionId     String
+  cardPrintingId   String
+  quantity         Int
+  condition        Condition    @default(NEAR_MINT)
+  finish           Finish       @default(NONFOIL)
+  language         String       @default("en")
+  purchasePrice    Decimal?     @db.Decimal(12, 2)
+  purchaseCurrency Currency     @default(USD)
+  purchaseDate     DateTime?
+  purchaseSource   String?
+  storageLocation  String?
+  notes            String?
+  acquiredAt       DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  collection       Collection   @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  cardPrinting     CardPrinting @relation(fields: [cardPrintingId], references: [id], onDelete: Restrict)
+
+  @@index([collectionId, createdAt])
+  @@index([collectionId, cardPrintingId])
+  @@index([cardPrintingId])
+}
+
+model CurrentPrice {
+  id             String        @id @default(cuid())
+  cardPrintingId String
+  provider       PriceProvider
+  finish         Finish
+  currency       Currency
+  market         Decimal?      @db.Decimal(12, 2)
+  low            Decimal?      @db.Decimal(12, 2)
+  mid            Decimal?      @db.Decimal(12, 2)
+  high           Decimal?      @db.Decimal(12, 2)
+  retrievedAt    DateTime
+  cardPrinting   CardPrinting  @relation(fields: [cardPrintingId], references: [id], onDelete: Cascade)
+
+  @@unique([cardPrintingId, provider, finish, currency])
+  @@index([cardPrintingId, retrievedAt])
+}
+
+model PriceHistory {
+  id             String        @id @default(cuid())
+  cardPrintingId String
+  provider       PriceProvider
+  finish         Finish
+  currency       Currency
+  market         Decimal?      @db.Decimal(12, 2)
+  snapshotDate   DateTime      @db.Date
+  retrievedAt    DateTime
+  cardPrinting   CardPrinting  @relation(fields: [cardPrintingId], references: [id], onDelete: Cascade)
+
+  @@unique([cardPrintingId, provider, finish, currency, snapshotDate])
+  @@index([cardPrintingId, snapshotDate])
+}

@@ -1,69 +1,103 @@
-import Image from "next/image";
+import Link from "next/link";
+import { ArrowUpRight, Clock3, Plus, Search } from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { formatMoney } from "@/lib/money";
+import { getDashboard } from "@/services/inventory";
 
-export default function Home() {
+export default async function Home() {
+  const { user, items, totals, uniqueCards, mostValuable, lastPriceUpdate } =
+    await getDashboard();
+  const currency = user.preferredCurrency;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <AppShell userName={user.displayName}>
+      <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <header className="mb-10 flex flex-wrap items-center justify-between gap-5">
+          <div>
+            <p className="mb-1 text-sm text-zinc-500">Good evening, {user.displayName}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">Your collection</h1>
+          </div>
+          <div className="flex gap-2">
+            <Link href="/collection" className="panel flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300">
+              <Search size={17} /> Browse
+            </Link>
+            <Link href="/add" className="button-primary text-sm"><Plus size={17} /> Add cards</Link>
+          </div>
+        </header>
+
+        <section className="panel relative overflow-hidden p-6 sm:p-8">
+          <div className="absolute -right-24 -top-32 size-80 rounded-full bg-emerald-400/8 blur-3xl" />
+          <p className="text-sm font-medium text-zinc-500">Total collection value</p>
+          <div className="mt-2 text-4xl font-semibold tracking-[-.04em] sm:text-5xl">
+            {formatMoney(totals.marketValue, currency)}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-5 text-sm">
+            <span className={totals.unrealizedGain !== null && totals.unrealizedGain >= 0 ? "text-emerald-400" : "text-rose-400"}>
+              {totals.unrealizedGain === null ? "Gain unavailable" : `${formatMoney(totals.unrealizedGain, currency)} unrealized`}
+            </span>
+            <span className="flex items-center gap-1.5 text-zinc-500">
+              <Clock3 size={14} />
+              {lastPriceUpdate ? `Updated ${lastPriceUpdate.toLocaleDateString()}` : "No market prices synced"}
+            </span>
+          </div>
+        </section>
+
+        <section className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            ["Total cards", totals.totalQuantity.toLocaleString()],
+            ["Unique cards", uniqueCards.toLocaleString()],
+            ["Cost basis", formatMoney(totals.costBasis, currency)],
+            ["Priced copies", `${totals.pricedQuantity} / ${totals.totalQuantity}`],
+          ].map(([label, value]) => (
+            <article key={label} className="panel p-5">
+              <p className="text-xs uppercase tracking-wider text-zinc-600">{label}</p>
+              <p className="mt-3 text-xl font-semibold">{value}</p>
+            </article>
+          ))}
+        </section>
+
+        <section className="mt-8 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+          <article className="panel overflow-hidden">
+            <div className="flex items-center justify-between border-b border-white/8 px-5 py-4">
+              <h2 className="font-medium">Recently added</h2>
+              <Link href="/collection" className="flex items-center gap-1 text-xs text-emerald-400">View all <ArrowUpRight size={13} /></Link>
+            </div>
+            {items.length ? (
+              <div className="divide-y divide-white/6">
+                {items.slice(0, 5).map((item) => (
+                  <div key={item.id} className="grid grid-cols-[1fr_auto] gap-4 px-5 py-4">
+                    <div>
+                      <p className="font-medium">{item.cardPrinting.name}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{item.cardPrinting.set.name} · #{item.cardPrinting.collectorNumber} · {item.finish.toLowerCase()}</p>
+                    </div>
+                    <span className="self-center text-sm text-zinc-400">× {item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            ) : <EmptyState />}
+          </article>
+          <article className="panel p-5">
+            <p className="text-xs uppercase tracking-wider text-zinc-600">Largest position</p>
+            {mostValuable ? (
+              <>
+                <h2 className="mt-5 text-xl font-semibold">{mostValuable.item.cardPrinting.name}</h2>
+                <p className="mt-1 text-sm text-zinc-500">{mostValuable.item.cardPrinting.set.name}</p>
+                <p className="mt-8 text-3xl font-semibold">{formatMoney(mostValuable.value, currency)}</p>
+              </>
+            ) : <p className="mt-5 text-sm leading-6 text-zinc-500">A largest position will appear after market pricing is available.</p>}
+          </article>
+        </section>
+      </div>
+    </AppShell>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="px-5 py-12 text-center">
+      <p className="font-medium">Your ledger is ready.</p>
+      <p className="mx-auto mt-2 max-w-sm text-sm text-zinc-500">Search real Scryfall printings and add your first physical card.</p>
+      <Link href="/add" className="button-primary mt-5 text-sm">Add your first card</Link>
     </div>
   );
 }
