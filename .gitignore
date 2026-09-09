@@ -20,6 +20,9 @@
 # production
 /build
 
+# persistent local PostgreSQL runtime and data
+/.local/
+
 # misc
 .DS_Store
 *.pem

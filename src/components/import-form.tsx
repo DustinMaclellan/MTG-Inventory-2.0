@@ -8,7 +8,7 @@ import {
 } from "@/app/actions";
 
 const template = `card_name,set_code,collector_number,quantity,condition,finish,language,purchase_price,storage_location
-Sol Ring,cmm,396,2,near mint,nonfoil,en,3.50,Commander Binder`;
+Sol Ring,cmm,410,2,near mint,nonfoil,en,3.50,Commander Binder`;
 
 export function ImportForm() {
   const [state, action, pending] = useActionState<ImportPreviewState, FormData>(

@@ -70,6 +70,12 @@ async function scryfallFetch<T>(url: string): Promise<T> {
 export class ScryfallProvider
   implements CardDataProvider<ScryfallCard>, PriceProvider
 {
+  async getPrinting(setCode: string, collectorNumber: string, language = "en") {
+    return scryfallFetch<ScryfallCard>(
+      `${SCRYFALL_API}/cards/${encodeURIComponent(setCode.toLowerCase())}/${encodeURIComponent(collectorNumber)}/${encodeURIComponent(language)}`,
+    );
+  }
+
   async searchPrintings(query: string) {
     const result = await scryfallFetch<ScryfallList>(
       `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=released`,

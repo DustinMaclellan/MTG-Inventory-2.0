@@ -1,21 +1,36 @@
 import "server-only";
 
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { scryfall } from "@/services/scryfall";
+
+function printingWhere(query: string): Prisma.CardPrintingWhereInput {
+  const setCode = query.match(/\b(?:set|e):([a-z0-9]+)/i)?.[1];
+  const collectorNumber = query.match(/\b(?:number|cn):([a-z0-9-]+)/i)?.[1];
+  if (setCode || collectorNumber) {
+    return {
+      digital: false,
+      ...(setCode && { set: { code: { equals: setCode, mode: "insensitive" } } }),
+      ...(collectorNumber && { collectorNumber }),
+    };
+  }
+  return {
+    digital: false,
+    OR: [
+      { name: { contains: query, mode: "insensitive" } },
+      { set: { code: { equals: query, mode: "insensitive" } } },
+      { collectorNumber: query },
+    ],
+  };
+}
 
 export async function searchCatalog(rawQuery: string) {
   const query = rawQuery.trim();
   if (query.length < 2) return [];
+  const where = printingWhere(query);
 
   const local = await db.cardPrinting.findMany({
-    where: {
-      digital: false,
-      OR: [
-        { name: { contains: query, mode: "insensitive" } },
-        { set: { code: { equals: query, mode: "insensitive" } } },
-        { collectorNumber: query },
-      ],
-    },
+    where,
     include: {
       set: true,
       currentPrices: { where: { provider: "SCRYFALL" } },
@@ -44,14 +59,7 @@ export async function searchCatalog(rawQuery: string) {
   if (!synchronized) return local;
 
   return db.cardPrinting.findMany({
-    where: {
-      digital: false,
-      OR: [
-        { name: { contains: query, mode: "insensitive" } },
-        { set: { code: { equals: query, mode: "insensitive" } } },
-        { collectorNumber: query },
-      ],
-    },
+    where,
     include: {
       set: true,
       currentPrices: { where: { provider: "SCRYFALL" } },

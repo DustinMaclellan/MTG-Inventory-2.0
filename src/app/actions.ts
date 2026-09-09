@@ -13,6 +13,7 @@ import {
 } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseInventoryCsv } from "@/services/csv";
+import { scryfall } from "@/services/scryfall";
 
 export type FormState = { error?: string };
 
@@ -71,6 +72,7 @@ const inventorySchema = z.object({
     z.coerce.number().nonnegative().max(1_000_000).optional(),
   ),
   storageLocation: z.string().trim().max(120).optional(),
+  returnQuery: z.string().trim().max(200).optional(),
 });
 
 export async function addInventoryAction(formData: FormData) {
@@ -104,7 +106,12 @@ export async function addInventoryAction(formData: FormData) {
   });
   revalidatePath("/");
   revalidatePath("/collection");
-  redirect("/collection?added=1");
+  revalidatePath("/storage");
+  revalidatePath("/add");
+
+  const params = new URLSearchParams({ added: "1" });
+  if (parsed.data.returnQuery) params.set("q", parsed.data.returnQuery);
+  redirect(`/add?${params.toString()}`);
 }
 
 export async function deleteInventoryAction(formData: FormData) {
@@ -151,7 +158,7 @@ export async function previewImportAction(
   let duplicates = 0;
 
   for (const row of parsed.valid) {
-    const printing = await db.cardPrinting.findFirst({
+    let printing = await db.cardPrinting.findFirst({
       where: {
         collectorNumber: row.collectorNumber,
         language: row.language,
@@ -159,6 +166,22 @@ export async function previewImportAction(
       },
       select: { id: true, name: true, finishes: true },
     });
+    if (!printing) {
+      try {
+        const remote = await scryfall.getPrinting(
+          row.setCode,
+          row.collectorNumber,
+          row.language,
+        );
+        await scryfall.synchronizePrintings([remote]);
+        printing = await db.cardPrinting.findUnique({
+          where: { scryfallId: remote.id },
+          select: { id: true, name: true, finishes: true },
+        });
+      } catch {
+        // The row remains unresolved and is reported to the user below.
+      }
+    }
     if (
       !printing ||
       printing.name.toLocaleLowerCase() !== row.cardName.toLocaleLowerCase() ||

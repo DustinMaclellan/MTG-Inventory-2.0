@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Archive,
   BarChart3,
   Boxes,
   CreditCard,
@@ -16,6 +17,7 @@ import { logoutAction } from "@/app/actions";
 const navigation = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/collection", label: "Collection", icon: Library },
+  { href: "/storage", label: "Storage", icon: Archive },
   { href: "/add", label: "Add Cards", icon: PlusCircle },
   { href: "/imports", label: "Import / Export", icon: FileUp },
   { href: "/decks", label: "Decks", icon: Boxes, disabled: true },

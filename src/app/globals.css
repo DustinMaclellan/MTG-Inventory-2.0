@@ -71,6 +71,10 @@ button, a {
   outline: none;
 }
 
+.field-with-icon {
+  padding-left: 2.75rem;
+}
+
 .field:focus {
   border-color: rgba(74,222,128,.65);
   box-shadow: 0 0 0 3px rgba(74,222,128,.08);

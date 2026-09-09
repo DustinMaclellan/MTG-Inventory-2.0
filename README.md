@@ -1,51 +1,97 @@
 # Mystic Ledger
 
-A production-oriented Magic: The Gathering collection and portfolio manager. The Phase 1 MVP uses exact Scryfall printings, real persisted market prices, private user inventories, daily price snapshots, and quantity-weighted valuation.
+Private Magic: The Gathering collection manager. Track exact printings, market value, storage locations, and CSV import/export.
 
-## Requirements
+**Stack:** Next.js · PostgreSQL · Prisma · Scryfall prices
 
-- Node.js 22+
-- PostgreSQL 15+
+---
 
-## Local setup
+## Quick start
 
-1. Copy `.env.example` to `.env` and set `DATABASE_URL`.
-2. Install dependencies with `npm install`.
-3. Apply the database migration with `npm run db:deploy`.
-4. Generate the Prisma client with `npm run db:generate`.
-5. Start the app with `npm run dev`, then open `http://localhost:3000`.
-
-Create an account in the UI. Registration creates a private default collection. Passwords are hashed with Argon2id and sessions use hashed, HTTP-only cookie tokens.
-
-## Card catalog and pricing
-
-The Add Cards page searches the local PostgreSQL catalog first. On a cold catalog, the server fetches real exact-printing data and prices from Scryfall and saves it locally. UI components never call Scryfall directly.
-
-For scheduled catalog warming:
+You need **Node.js 22+**. No separate Postgres install is required for local development.
 
 ```bash
-npm run catalog:sync
+git clone <your-repo-url> mtg-collection-manager
+cd mtg-collection-manager
+npm install
+npm run dev
 ```
 
-`SCRYFALL_SYNC_PAGES` controls how many search pages are processed per run (default `10`). Schedule multiple bounded runs for a full catalog. Search-driven synchronization keeps a development database useful immediately, while current and daily historical price rows are updated whenever printings synchronize.
+Open [http://localhost:3000](http://localhost:3000), create an account, and start adding cards.
 
-Scryfall does not publish condition-specific prices. Mystic Ledger therefore displays the unadjusted printing/finish price and never invents a condition multiplier. Missing prices are shown as unavailable, not `$0`.
+`npm run dev` will:
 
-## CSV
+1. Start a project-local PostgreSQL on port `54321` (data under `.local/`)
+2. Apply database migrations
+3. Start the Next.js app
 
-Use Import / Export in the sidebar. Imports require `card_name`, `set_code`, `collector_number`, `quantity`, `condition`, `finish`, and `language`. A review step reports recognized, unresolved, duplicate, and invalid rows; import stays disabled until every row resolves exactly.
+The first run can take a minute while Postgres binaries download and initialize.
 
-## Quality commands
+---
+
+## What you can do (Phase 1)
+
+- Register / sign in (private inventory per account)
+- Search exact Scryfall printings and add lots (qty, finish, condition, paid price, storage)
+- Browse and search your collection; filter by storage
+- See storage grouped by location
+- Dashboard with total market value and cost basis
+- CSV import (with review) and export
+
+Prices come from Scryfall and are stored locally. The UI never calls Scryfall directly.
+
+---
+
+## Useful commands
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Local Postgres + app (recommended) |
+| `npm run dev:web` | App only (use your own `DATABASE_URL`) |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run catalog:sync` | Warm more catalog/price data from Scryfall |
+| `npm run typecheck` | TypeScript check |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests |
+| `npm run build` | Production build |
+
+---
+
+## Using your own PostgreSQL
 
 ```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
+cp .env.example .env
 ```
 
-## Deployment
+Set `DATABASE_URL` in `.env`, then:
 
-Deploy the Next.js app to Vercel, Railway, or a compatible Node host and connect a managed PostgreSQL service such as Neon, Supabase, or Railway. Set `DATABASE_URL`, `APP_URL`, `SESSION_COOKIE_SECURE=true`, and an optional `CRON_SECRET`. Run `npm run db:deploy` during release.
+```bash
+npm run db:deploy
+npm run dev:web
+```
 
-See `docs/ARCHITECTURE.md` for service boundaries, identity rules, synchronization, and scaling decisions.
+---
+
+## Environment variables
+
+See `.env.example`. Common values:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string |
+| `APP_URL` | Public app URL (e.g. `http://localhost:3000`) |
+| `SESSION_COOKIE_SECURE` | `true` in production HTTPS |
+| `CRON_SECRET` | Optional secret for scheduled sync endpoints |
+
+Copy `.env.example` → `.env` only when you are not using the embedded Postgres from `npm run dev`. Never commit `.env`.
+
+---
+
+## Deploy
+
+1. Host the Next.js app (Vercel, Railway, etc.)
+2. Attach managed Postgres (Neon, Supabase, Railway, …)
+3. Set `DATABASE_URL`, `APP_URL`, and `SESSION_COOKIE_SECURE=true`
+4. Run `npm run db:deploy` on release
+
+More detail on architecture and identity rules: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)

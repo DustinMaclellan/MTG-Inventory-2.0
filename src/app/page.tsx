@@ -19,7 +19,7 @@ export default async function Home() {
           </div>
           <div className="flex gap-2">
             <Link href="/collection" className="panel flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-300">
-              <Search size={17} /> Browse
+              <Search size={17} /> Search collection
             </Link>
             <Link href="/add" className="button-primary text-sm"><Plus size={17} /> Add cards</Link>
           </div>
