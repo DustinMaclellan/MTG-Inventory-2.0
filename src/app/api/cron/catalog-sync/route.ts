@@ -7,11 +7,12 @@ export const maxDuration = 60;
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
-  const header = request.headers.get("authorization");
-  const bearer = header?.startsWith("Bearer ") ? header.slice(7) : "";
-  const query = new URL(request.url).searchParams.get("secret");
+  // Accept the secret only through request headers, never query parameters,
+  // to prevent the secret from appearing in server access logs.
+  const bearer = request.headers.get("authorization");
   const custom = request.headers.get("x-cron-secret");
-  return bearer === secret || query === secret || custom === secret;
+  const fromBearer = bearer?.startsWith("Bearer ") ? bearer.slice(7) : "";
+  return fromBearer === secret || custom === secret;
 }
 
 async function run(request: Request) {

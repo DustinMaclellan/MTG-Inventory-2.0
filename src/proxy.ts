@@ -26,9 +26,10 @@ export function proxy(request: NextRequest) {
   if (request.cookies.get(SESSION_COOKIE)?.value) {
     return NextResponse.next();
   }
-  const login = new URL("/login", request.url);
-  login.searchParams.set("next", request.nextUrl.pathname);
-  return NextResponse.redirect(login);
+  // Redirect to login. We intentionally do NOT include a ?next= redirect param
+  // here: any future code that reads ?next= must validate it is same-origin
+  // before using it, to prevent open-redirect attacks.
+  return NextResponse.redirect(new URL("/login", request.url));
 }
 
 export const config = {

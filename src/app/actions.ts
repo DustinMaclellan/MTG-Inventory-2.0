@@ -31,8 +31,12 @@ function hashToken(token: string) {
 
 async function enforceAuthRateLimit(email: string) {
   const ip = clientIpFrom(await headers());
-  const limited = [rateLimit(`auth:ip:${ip}`), rateLimit(`auth:email:${email}`)];
-  return limited.every((result) => result.ok);
+  // Run both checks concurrently; block if EITHER bucket is exhausted.
+  const [byIp, byEmail] = await Promise.all([
+    rateLimit(`auth:ip:${ip}`),
+    rateLimit(`auth:email:${email}`),
+  ]);
+  return byIp.ok && byEmail.ok;
 }
 
 const credentialsSchema = z.object({

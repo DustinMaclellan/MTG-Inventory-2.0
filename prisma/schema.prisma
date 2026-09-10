@@ -218,3 +218,14 @@ model PriceHistory {
   @@unique([cardPrintingId, provider, finish, currency, snapshotDate])
   @@index([cardPrintingId, snapshotDate])
 }
+
+/// Persistent rate-limit buckets. Keyed on an opaque string (e.g. "auth:ip:1.2.3.4").
+/// Using the database ensures the limit survives serverless cold-starts and
+/// works correctly across multiple function instances.
+model RateLimitBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
