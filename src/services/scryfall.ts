@@ -87,13 +87,13 @@ export class ScryfallProvider
 
   async searchPrintings(query: string) {
     const cards: ScryfallCard[] = [];
-    let url: string | undefined =
+    let nextUrl: string | undefined =
       `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=released`;
-    while (url) {
-      const result = await scryfallFetch<ScryfallList>(url);
-      cards.push(...result.data);
-      url = result.has_more ? result.next_page : undefined;
-      if (url) await pause(100);
+    while (nextUrl) {
+      const page: ScryfallList = await scryfallFetch<ScryfallList>(nextUrl);
+      cards.push(...page.data);
+      nextUrl = page.has_more && page.next_page ? page.next_page : undefined;
+      if (nextUrl) await pause(100);
     }
     return cards.filter((card) => card.oracle_id && !card.digital);
   }
