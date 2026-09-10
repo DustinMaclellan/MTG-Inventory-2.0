@@ -3,6 +3,12 @@ import "server-only";
 import { Currency, Finish, type Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toDisplayMarket } from "@/lib/pricing";
+import {
+  parseCatalogQuery,
+  restoreRejectedSet,
+  scryfallCatalogQuery,
+  type CatalogSearchParts,
+} from "@/services/catalog-query";
 import { ingestPaperPrintings } from "@/services/catalog-sync";
 import { scryfall } from "@/services/scryfall";
 
@@ -16,23 +22,19 @@ const printingInclude = {
   currentPrices: { where: { provider: "SCRYFALL" as const } },
 } satisfies Prisma.CardPrintingInclude;
 
-function printingWhere(query: string): Prisma.CardPrintingWhereInput {
-  const setCode = query.match(/\b(?:set|e):([a-z0-9]+)/i)?.[1];
-  const collectorNumber = query.match(/\b(?:number|cn):([a-z0-9-]+)/i)?.[1];
-  if (setCode || collectorNumber) {
-    return {
-      digital: false,
-      ...(setCode && { set: { code: { equals: setCode, mode: "insensitive" } } }),
-      ...(collectorNumber && { collectorNumber }),
-    };
-  }
+function printingWhere(parts: CatalogSearchParts): Prisma.CardPrintingWhereInput {
+  const nameFilter = parts.name
+    ? parts.setCode || parts.collectorNumber
+      ? { equals: parts.name, mode: "insensitive" as const }
+      : { contains: parts.name, mode: "insensitive" as const }
+    : undefined;
   return {
     digital: false,
-    OR: [
-      { name: { contains: query, mode: "insensitive" } },
-      { set: { code: { equals: query, mode: "insensitive" } } },
-      { collectorNumber: query },
-    ],
+    ...(nameFilter && { name: nameFilter }),
+    ...(parts.setCode && { set: { code: { equals: parts.setCode, mode: "insensitive" as const } } }),
+    ...(parts.collectorNumber && {
+      collectorNumber: { equals: parts.collectorNumber, mode: "insensitive" as const },
+    }),
   };
 }
 
@@ -88,27 +90,30 @@ async function catalogIsComplete() {
   }
 }
 
-function isSetOrNumberQuery(query: string) {
-  return (
-    /\b(?:set|e|number|cn):/i.test(query) ||
-    /^[a-z0-9]{2,5}$/i.test(query) ||
-    /^\d+[a-z]?$/i.test(query)
-  );
+async function resolveSearchParts(rawQuery: string): Promise<CatalogSearchParts> {
+  const sets = await db.mtgSet.findMany({ select: { code: true, name: true } });
+  const parsed = parseCatalogQuery(rawQuery, sets);
+  if (!parsed.setCode) return parsed;
+  const known = await db.mtgSet.findFirst({
+    where: { code: { equals: parsed.setCode, mode: "insensitive" } },
+    select: { code: true },
+  });
+  if (known) return { ...parsed, setCode: known.code };
+  return restoreRejectedSet(parsed);
 }
 
-async function backfillFromScryfall(query: string) {
-  const cleaned = query.replaceAll('"', "").trim();
-  const exactName = !isSetOrNumberQuery(cleaned);
+async function backfillFromScryfall(parts: CatalogSearchParts) {
+  const exactName = Boolean(parts.name) && !parts.setCode && !parts.collectorNumber;
   const remote = await scryfall.searchPrintings(
-    exactName ? `!"${cleaned}" game:paper` : `${cleaned} game:paper`,
+    scryfallCatalogQuery(parts),
     exactName ? {} : { maxPages: 1 },
   );
   await ingestPaperPrintings(remote);
 }
 
-async function localExact(query: string) {
+async function localExact(name: string) {
   const cards = await db.card.findMany({
-    where: { normalizedName: query.toLocaleLowerCase() },
+    where: { normalizedName: name.toLocaleLowerCase() },
     select: { id: true },
     take: 8,
   });
@@ -125,21 +130,26 @@ export async function searchCatalog(rawQuery: string) {
   const query = rawQuery.trim();
   if (query.length < 2) return [];
 
+  const parts = await resolveSearchParts(query);
+  if (!parts.name && !parts.setCode && !parts.collectorNumber) return [];
+
   if (!(await catalogIsComplete())) {
     try {
-      await backfillFromScryfall(query);
+      await backfillFromScryfall(parts);
     } catch {
       // Serve whatever is already in the catalog.
     }
   }
 
-  const exact = await localExact(query);
-  if (exact.length > 0) return exact;
+  if (parts.name && !parts.setCode && !parts.collectorNumber) {
+    const exact = await localExact(parts.name);
+    if (exact.length > 0) return exact;
+  }
 
   return db.cardPrinting.findMany({
-    where: printingWhere(query),
+    where: printingWhere(parts),
     include: printingInclude,
     orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
-    take: FUZZY_TAKE,
+    take: parts.name && (parts.setCode || parts.collectorNumber) ? EXACT_TAKE : FUZZY_TAKE,
   });
 }
