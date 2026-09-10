@@ -13,16 +13,23 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#090b0e]/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_30px_rgba(52,211,153,.15)]">
-              <Sparkles size={20} />
+      {/* ── Header ────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b border-white/6 bg-[#080a0d]/88 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-3 group">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_20px_rgba(52,211,153,.30)] transition-shadow group-hover:shadow-[0_0_28px_rgba(52,211,153,.45)]">
+              <Sparkles size={18} />
             </span>
-            <strong className="tracking-tight">Mystic Ledger</strong>
+            <strong className="text-sm tracking-tight">Mystic Ledger</strong>
           </Link>
-          <nav className="flex items-center gap-2 text-sm sm:gap-3">
-            <Link href="/pricing" className="hidden px-3 py-2 text-zinc-400 hover:text-white sm:inline">
+
+          {/* Nav */}
+          <nav className="flex items-center gap-1 text-sm">
+            <Link
+              href="/pricing"
+              className="hidden px-3 py-2 text-zinc-500 hover:text-zinc-200 transition-colors rounded-lg hover:bg-white/4 sm:inline-block"
+            >
               Pricing
             </Link>
             {user ? (
@@ -31,10 +38,13 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
               </Link>
             ) : (
               <>
-                <Link href="/login" className="px-3 py-2 text-zinc-400 hover:text-white">
+                <Link
+                  href="/login"
+                  className="px-3 py-2 text-zinc-500 hover:text-zinc-200 transition-colors rounded-lg hover:bg-white/4"
+                >
                   Sign in
                 </Link>
-                <Link href="/register" className="button-primary text-sm">
+                <Link href="/register" className="button-primary text-sm ml-1">
                   Start free trial
                 </Link>
               </>
@@ -42,19 +52,38 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
           </nav>
         </div>
       </header>
+
+      {/* ── Page content ──────────────────────────────────── */}
       <main>{children}</main>
-      <footer className="border-t border-white/8 px-5 py-10 text-sm text-zinc-500">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-          <div className="max-w-xl space-y-3 leading-6">
-            <p>Card prices and imagery come from Scryfall. Card images are served from cards.scryfall.io.</p>
+
+      {/* ── Footer ────────────────────────────────────────── */}
+      <footer className="border-t border-white/6 px-5 py-12 text-xs text-zinc-600">
+        <div className="mx-auto flex max-w-6xl flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+          {/* Brand + legal */}
+          <div className="flex flex-col gap-3 max-w-md leading-5">
+            <Link href="/" className="flex items-center gap-2.5 mb-1">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-400 text-black">
+                <Sparkles size={13} />
+              </span>
+              <strong className="text-xs text-zinc-400">Mystic Ledger</strong>
+            </Link>
+            <p>Card prices and imagery come from Scryfall. Images are served from cards.scryfall.io.</p>
             <p>
-              Magic: The Gathering is a trademark of Wizards of the Coast LLC. Mystic Ledger is unofficial
-              fan software and is not affiliated with, endorsed, or sponsored by Wizards of the Coast.
+              Magic: The Gathering is a trademark of Wizards of the Coast LLC. Mystic Ledger is
+              unofficial fan software and is not affiliated with, endorsed, or sponsored by Wizards
+              of the Coast.
             </p>
           </div>
-          <div className="flex gap-4">
+
+          {/* Links */}
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] uppercase tracking-widest text-zinc-700 mb-1">Links</p>
             {footerLinks.map((link) => (
-              <Link key={link.href} href={link.href} className="hover:text-emerald-400">
+              <Link
+                key={link.href}
+                href={link.href}
+                className="hover:text-emerald-400 transition-colors"
+              >
                 {link.label}
               </Link>
             ))}

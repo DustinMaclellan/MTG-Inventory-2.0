@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #090b0e;
-  --surface: #111419;
-  --surface-raised: #171b21;
-  --foreground: #f4f4f5;
+  --background: #080a0d;
+  --surface: #0f1318;
+  --surface-raised: #151a21;
+  --foreground: #f1f2f4;
   --muted: #9398a1;
   --accent: #4ade80;
   color-scheme: dark;
@@ -26,7 +26,10 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, sans-serif;
   margin: 0;
-  background-image: radial-gradient(circle at 72% -20%, rgba(52, 211, 153, .08), transparent 34rem);
+  /* Richer, more atmospheric background */
+  background-image:
+    radial-gradient(ellipse at 80% -10%, rgba(52, 211, 153, .10) 0%, transparent 50%),
+    radial-gradient(ellipse at 20% 80%, rgba(16, 185, 129, .05) 0%, transparent 40%);
 }
 
 button, input, select {
@@ -37,38 +40,65 @@ button, a {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* ─── Gradient text ───────────────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #34d399, #4ade80 40%, #6ee7b7);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Navigation ─────────────────────────────────────── */
 .nav-link {
   display: flex;
   align-items: center;
   gap: .75rem;
   border-radius: .75rem;
-  padding: .65rem .75rem;
-  color: #a1a1aa;
+  padding: .6rem .75rem;
+  color: #71717a;
   font-size: .875rem;
   transition: color .15s ease, background .15s ease;
   cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .nav-link:hover {
-  background: rgba(255,255,255,.05);
-  color: white;
+  background: rgba(255,255,255,.04);
+  color: #d4d4d8;
 }
 
+.nav-link-active {
+  background: rgba(52, 211, 153, .08) !important;
+  color: #4ade80 !important;
+  border-color: rgba(52, 211, 153, .12) !important;
+}
+
+/* ─── Cards / panels ─────────────────────────────────── */
 .panel {
-  border: 1px solid rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.07);
   border-radius: 1rem;
-  background: rgba(17,20,25,.86);
-  box-shadow: 0 18px 50px rgba(0,0,0,.15);
+  background: rgba(15, 19, 24, .90);
+  box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 20px 60px rgba(0,0,0,.20);
 }
 
+/* Slightly elevated panel variant */
+.panel-raised {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 1rem;
+  background: rgba(21, 26, 33, .95);
+  box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 24px 64px rgba(0,0,0,.25);
+}
+
+/* ─── Form fields ────────────────────────────────────── */
 .field {
   width: 100%;
-  border: 1px solid rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.09);
   border-radius: .75rem;
-  background: #0d1014;
+  background: rgba(8,10,13,.70);
   padding: .72rem .85rem;
   color: white;
   outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
 }
 
 .field-with-icon {
@@ -76,10 +106,15 @@ button, a {
 }
 
 .field:focus {
-  border-color: rgba(74,222,128,.65);
+  border-color: rgba(74,222,128,.50);
   box-shadow: 0 0 0 3px rgba(74,222,128,.08);
 }
 
+.field::placeholder {
+  color: #3f3f46;
+}
+
+/* ─── Buttons ────────────────────────────────────────── */
 .button-primary {
   display: inline-flex;
   align-items: center;
@@ -87,16 +122,23 @@ button, a {
   gap: .5rem;
   border-radius: .75rem;
   background: #4ade80;
-  color: #071009;
-  padding: .72rem 1rem;
+  color: #052410;
+  padding: .72rem 1.1rem;
   font-weight: 700;
   cursor: pointer;
-  transition: transform .15s ease, background .15s ease;
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease;
+  box-shadow: 0 0 0 1px rgba(74,222,128,.3), 0 2px 8px rgba(52,211,153,.15);
 }
 
 .button-primary:hover {
   background: #6ee7a0;
   transform: translateY(-1px);
+  box-shadow: 0 0 0 1px rgba(74,222,128,.4), 0 4px 16px rgba(52,211,153,.25);
+}
+
+.button-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 0 0 1px rgba(74,222,128,.2);
 }
 
 .button-secondary {
@@ -105,18 +147,47 @@ button, a {
   justify-content: center;
   gap: .5rem;
   border-radius: .75rem;
-  border: 1px solid rgba(255,255,255,.12);
-  background: transparent;
-  color: #f4f4f5;
-  padding: .72rem 1rem;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.03);
+  color: #d4d4d8;
+  padding: .72rem 1.1rem;
   font-weight: 600;
   cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
 }
 
 .button-secondary:hover {
-  background: rgba(255,255,255,.05);
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.16);
+  transform: translateY(-1px);
 }
 
+.button-secondary:active {
+  transform: translateY(0);
+}
+
+/* ─── Badges ─────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(52, 211, 153, .20);
+  background: rgba(52, 211, 153, .06);
+  padding: .2rem .65rem;
+  font-size: .75rem;
+  font-weight: 500;
+  color: #4ade80;
+  letter-spacing: .01em;
+}
+
+.badge-amber {
+  border-color: rgba(251, 191, 36, .25);
+  background: rgba(251, 191, 36, .07);
+  color: #fbbf24;
+}
+
+/* ─── Legal pages ────────────────────────────────────── */
 .legal-copy h1 {
   font-size: 2.25rem;
   font-weight: 600;

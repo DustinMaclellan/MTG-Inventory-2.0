@@ -1,31 +1,9 @@
 import Link from "next/link";
 import type { User } from "@prisma/client";
-import {
-  Archive,
-  BarChart3,
-  Boxes,
-  CreditCard,
-  LayoutDashboard,
-  Library,
-  LogOut,
-  FileUp,
-  PlusCircle,
-  Settings,
-  Sparkles,
-} from "lucide-react";
+import { LogOut, Settings, Sparkles } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { trialDaysRemaining } from "@/lib/entitlements";
-
-const navigation = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/collection", label: "Collection", icon: Library },
-  { href: "/storage", label: "Storage", icon: Archive },
-  { href: "/add", label: "Add Cards", icon: PlusCircle },
-  { href: "/imports", label: "Import / Export", icon: FileUp },
-  { href: "/decks", label: "Decks", icon: Boxes, disabled: true },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, disabled: true },
-  { href: "/transactions", label: "Transactions", icon: CreditCard, disabled: true },
-];
+import { MobileNav, NavLinks } from "@/components/nav-links";
 
 export function AppShell({
   children,
@@ -36,63 +14,80 @@ export function AppShell({
 }) {
   const daysLeft = trialDaysRemaining(user);
 
+  // User initials for the avatar
+  const initials = user.displayName
+    .split(" ")
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .slice(0, 2)
+    .join("");
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-white/8 bg-[#0b0d10] p-5 lg:flex lg:flex-col">
-        <Link href="/dashboard" className="mb-10 flex items-center gap-3 px-2">
-          <span className="grid size-10 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_30px_rgba(52,211,153,.15)]">
-            <Sparkles size={20} />
+      {/* ── Sidebar (desktop) ─────────────────────────────── */}
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 border-r border-white/6 bg-[#080a0d] p-4 lg:flex lg:flex-col">
+        {/* Logo */}
+        <Link
+          href="/dashboard"
+          className="mb-8 flex items-center gap-3 px-2 py-1 rounded-xl transition-colors hover:bg-white/3"
+        >
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,.25)]">
+            <Sparkles size={18} />
           </span>
           <span>
-            <strong className="block tracking-tight">Mystic Ledger</strong>
-            <small className="text-xs text-zinc-500">Collection intelligence</small>
+            <strong className="block text-sm tracking-tight leading-tight">Mystic Ledger</strong>
+            <small className="text-[10px] text-zinc-600 font-normal">Collection intelligence</small>
           </span>
         </Link>
-        <nav className="space-y-1">
-          {navigation.map(({ href, label, icon: Icon, disabled }) =>
-            disabled ? (
-              <span key={href} className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-zinc-700">
-                <Icon size={18} /> {label} <small className="ml-auto">Soon</small>
-              </span>
-            ) : (
-              <Link key={href} href={href} className="nav-link">
-                <Icon size={18} /> {label}
-              </Link>
-            ),
-          )}
-        </nav>
-        <div className="mt-auto border-t border-white/8 pt-4">
+
+        {/* Navigation */}
+        <NavLinks />
+
+        {/* Bottom: settings + user */}
+        <div className="mt-auto pt-4 border-t border-white/6">
           <Link href="/settings" className="nav-link">
-            <Settings size={18} /> Settings
+            <Settings size={17} /> Settings
           </Link>
           <form action={logoutAction}>
-            <button className="nav-link w-full">
-              <LogOut size={18} /> Sign out
+            <button className="nav-link w-full text-left">
+              <LogOut size={17} /> Sign out
             </button>
           </form>
-          <p className="mt-4 truncate px-3 text-xs text-zinc-600">{user.displayName}</p>
+
+          {/* User identity */}
+          <div className="mt-4 flex items-center gap-3 px-3">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-400/15 text-[11px] font-semibold text-emerald-400 border border-emerald-400/20">
+              {initials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-zinc-300">{user.displayName}</p>
+              <p className="truncate text-[10px] text-zinc-600">{user.email}</p>
+            </div>
+          </div>
         </div>
       </aside>
-      <main className="pb-24 lg:ml-64 lg:pb-0">
+
+      {/* ── Main content ──────────────────────────────────── */}
+      <main className="pb-24 lg:ml-60 lg:pb-0">
+        {/* Trial banner */}
         {daysLeft !== null && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-400/20 bg-emerald-400/8 px-5 py-3 text-sm text-emerald-100">
-            <p>
-              {daysLeft} day{daysLeft === 1 ? "" : "s"} left in your free trial.
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-400/15 bg-emerald-400/6 px-5 py-2.5 text-sm text-emerald-100/90">
+            <p className="text-xs">
+              <span className="font-semibold text-emerald-300">{daysLeft} day{daysLeft === 1 ? "" : "s"}</span>{" "}
+              left in your free trial.
             </p>
-            <Link href="/subscribe" className="font-medium text-emerald-300 hover:text-white">
-              Subscribe
+            <Link
+              href="/subscribe"
+              className="text-xs font-semibold text-emerald-300 hover:text-white transition-colors"
+            >
+              Subscribe to keep access →
             </Link>
           </div>
         )}
         {children}
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-white/10 bg-[#0b0d10]/95 px-2 py-2 backdrop-blur lg:hidden">
-        {navigation.slice(0, 3).map(({ href, label, icon: Icon }) => (
-          <Link key={href} href={href} className="flex flex-col items-center gap-1 px-5 py-1 text-[11px] text-zinc-400">
-            <Icon size={19} /> {label}
-          </Link>
-        ))}
-      </nav>
+
+      {/* ── Mobile bottom nav ─────────────────────────────── */}
+      <MobileNav />
     </div>
   );
 }

@@ -1,37 +1,80 @@
 "use client";
 
 import { useActionState } from "react";
+import { Lock } from "lucide-react";
 import { startCheckoutAction } from "@/app/billing-actions";
 import type { FormState } from "@/app/actions";
 import { PLAN_MONTHLY_USD, PLAN_YEARLY_USD } from "@/lib/constants";
+
+const SAVINGS_PCT = Math.round(
+  (1 - PLAN_YEARLY_USD / (PLAN_MONTHLY_USD * 12)) * 100,
+);
 
 export function CheckoutForm() {
   const [state, formAction, pending] = useActionState(startCheckoutAction, {} as FormState);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {state.error && (
-        <p role="alert" className="rounded-lg bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+        <p role="alert" className="rounded-xl border border-rose-500/20 bg-rose-500/8 px-4 py-3 text-sm text-rose-300">
           {state.error}
         </p>
       )}
+
       <div className="grid gap-3 sm:grid-cols-2">
+        {/* Monthly */}
         <form action={formAction}>
           <input type="hidden" name="interval" value="monthly" />
-          <button disabled={pending} className="panel w-full p-5 text-left disabled:opacity-50">
-            <p className="text-sm text-zinc-500">Monthly</p>
-            <p className="mt-2 text-2xl font-semibold">${PLAN_MONTHLY_USD}/mo</p>
-            <p className="mt-3 text-sm text-emerald-400">{pending ? "Redirecting…" : "Continue to checkout"}</p>
+          <button
+            disabled={pending}
+            className="group panel w-full p-6 text-left transition-all duration-200 hover:border-white/14 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">Monthly</p>
+            <div className="mt-3 flex items-end gap-1">
+              <span className="text-3xl font-semibold">${PLAN_MONTHLY_USD}</span>
+              <span className="mb-0.5 text-zinc-500">/mo</span>
+            </div>
+            <p className="mt-4 text-sm font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors">
+              {pending ? "Redirecting to Stripe…" : "Continue →"}
+            </p>
           </button>
         </form>
+
+        {/* Yearly */}
         <form action={formAction}>
           <input type="hidden" name="interval" value="yearly" />
-          <button disabled={pending} className="panel w-full p-5 text-left disabled:opacity-50">
-            <p className="text-sm text-emerald-400">Yearly</p>
-            <p className="mt-2 text-2xl font-semibold">${PLAN_YEARLY_USD}/yr</p>
-            <p className="mt-3 text-sm text-emerald-400">{pending ? "Redirecting…" : "Continue to checkout"}</p>
+          <button
+            disabled={pending}
+            className="group panel relative w-full overflow-hidden border-emerald-400/20 p-6 text-left transition-all duration-200 hover:border-emerald-400/35 hover:shadow-[0_20px_50px_rgba(52,211,153,.08)] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <div className="absolute inset-0 bg-emerald-400/3 pointer-events-none" aria-hidden />
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">Yearly</p>
+                <span className="badge text-[10px]">Save {SAVINGS_PCT}%</span>
+              </div>
+              <div className="mt-3 flex items-end gap-1">
+                <span className="text-3xl font-semibold">${PLAN_YEARLY_USD}</span>
+                <span className="mb-0.5 text-zinc-500">/yr</span>
+              </div>
+              <p className="mt-4 text-sm font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors">
+                {pending ? "Redirecting to Stripe…" : "Continue →"}
+              </p>
+            </div>
           </button>
         </form>
+      </div>
+
+      {/* Trust signals */}
+      <div className="flex flex-wrap items-center justify-center gap-4 pt-1 text-xs text-zinc-600">
+        <span className="flex items-center gap-1.5">
+          <Lock size={11} className="text-zinc-500" />
+          Secured by Stripe
+        </span>
+        <span>·</span>
+        <span>Cancel anytime from your billing portal</span>
+        <span>·</span>
+        <span>No hidden fees</span>
       </div>
     </div>
   );
