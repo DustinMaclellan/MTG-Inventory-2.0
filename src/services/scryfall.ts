@@ -21,6 +21,7 @@ export type ScryfallCard = {
   oracle_text?: string;
   mana_cost?: string;
   color_identity?: string[];
+  games?: string[];
   digital: boolean;
   promo: boolean;
   finishes: string[];
@@ -39,11 +40,11 @@ export type ScryfallCard = {
 
 type ScryfallList = { data: ScryfallCard[]; has_more: boolean; next_page?: string };
 
-function image(card: ScryfallCard, size: "small" | "normal") {
+export function scryfallImage(card: ScryfallCard, size: "small" | "normal") {
   return card.image_uris?.[size] ?? card.card_faces?.[0]?.image_uris?.[size] ?? null;
 }
 
-function finishes(values: string[]): Finish[] {
+export function scryfallFinishes(values: string[]): Finish[] {
   return values.flatMap((value) => {
     if (value === "nonfoil") return [Finish.NONFOIL];
     if (value === "foil") return [Finish.FOIL];
@@ -85,13 +86,15 @@ export class ScryfallProvider
     );
   }
 
-  async searchPrintings(query: string) {
+  async searchPrintings(query: string, options: { maxPages?: number } = {}) {
     const cards: ScryfallCard[] = [];
+    let pages = 0;
     let nextUrl: string | undefined =
       `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=released`;
-    while (nextUrl) {
+    while (nextUrl && (options.maxPages == null || pages < options.maxPages)) {
       const page: ScryfallList = await scryfallFetch<ScryfallList>(nextUrl);
       cards.push(...page.data);
+      pages += 1;
       nextUrl = page.has_more && page.next_page ? page.next_page : undefined;
       if (nextUrl) await pause(100);
     }
@@ -161,9 +164,9 @@ export class ScryfallProvider
           name: card.name,
           rarity: card.rarity,
           artist: card.artist,
-          imageSmallUrl: image(card, "small"),
-          imageNormalUrl: image(card, "normal"),
-          finishes: finishes(card.finishes),
+          imageSmallUrl: scryfallImage(card, "small"),
+          imageNormalUrl: scryfallImage(card, "normal"),
+          finishes: scryfallFinishes(card.finishes),
           rawPrices: card.prices,
           pricesUpdatedAt: new Date(),
         },
@@ -177,9 +180,9 @@ export class ScryfallProvider
           artist: card.artist,
           language: card.lang,
           releasedAt: card.released_at ? new Date(card.released_at) : null,
-          imageSmallUrl: image(card, "small"),
-          imageNormalUrl: image(card, "normal"),
-          finishes: finishes(card.finishes),
+          imageSmallUrl: scryfallImage(card, "small"),
+          imageNormalUrl: scryfallImage(card, "normal"),
+          finishes: scryfallFinishes(card.finishes),
           promo: card.promo,
           digital: card.digital,
           tcgplayerId: card.tcgplayer_id,

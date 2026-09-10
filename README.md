@@ -56,8 +56,8 @@ Prices come from Scryfall and are stored locally. The browser never calls Scryfa
 Scryfall publishes **USD** and **EUR**. Those values are saved when a printing is first fetched, and refreshed daily for every printing someone owns.
 
 - **Daily job** (`/api/cron/price-sync` at 06:00 UTC) re-fetches owned printings through Scryfall’s collection API
-- **Catalog job** (`/api/cron/catalog-sync` at 06:30 UTC) pulls the newest paper printings so search stays warm
-- Search and CSV import also update prices for printings they load
+- **Catalog job** (`/api/cron/catalog-sync` at 06:30 UTC) adds the newest paper printings. A full catalog comes from Scryfall’s **default_cards** bulk file via `npm run catalog:sync`
+- Add Cards searches the local catalog (no live Scryfall call once the bulk file is imported)
 - Opening the dashboard does **not** call Scryfall; it reads stored prices
 - **CAD** uses Scryfall USD converted at the ECB USD/CAD rate (Frankfurter). If that rate is unavailable, CAD falls back to the USD amount
 
@@ -73,7 +73,7 @@ Scryfall itself updates TCGPlayer / Cardmarket prices about once a day, so colle
 | `npm run dev:web` | App only (use your own `DATABASE_URL`) |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run db:deploy` | Apply migrations (production) |
-| `npm run catalog:sync` | Refresh owned prices, then warm newest catalog pages |
+| `npm run catalog:sync` | Import Scryfall’s bulk card file, then refresh owned prices |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
 | `npm test` | Unit tests |
@@ -131,7 +131,7 @@ On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` is used if `APP_URL` is missing. Per-
 7. Set `RESEND_API_KEY` and a verified `EMAIL_FROM` so password reset email actually sends
 8. Confirm both Vercel crons are enabled: `/api/cron/price-sync` (06:00 UTC) and `/api/cron/catalog-sync` (06:30 UTC)
 
-Hobby Vercel cron jobs are capped at 60 seconds. Owned-price refresh is sized for that. The catalog job may need a higher `maxDuration` (Pro) or a lower `SCRYFALL_SYNC_PAGES` if it times out.
+Hobby Vercel cron jobs are capped at 60 seconds. Owned-price refresh is sized for that. After `npm run catalog:sync` has loaded the bulk file, the daily catalog job only fetches the newest printings.
 
 Recommended list price: **$8/month** or **$72/year**. Change the amounts in the Stripe Dashboard; the marketing copy lives in `src/lib/constants.ts`.
 

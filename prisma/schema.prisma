@@ -254,6 +254,14 @@ model Deck {
   @@index([userId])
 }
 
+model CatalogSync {
+  id            String    @id
+  bulkType      String    @default("default_cards")
+  bulkUpdatedAt DateTime?
+  lastSyncedAt  DateTime?
+  printingCount Int       @default(0)
+}
+
 model DeckCard {
   id              String        @id @default(cuid())
   deckId          String

@@ -3,8 +3,8 @@ import { CheckCircle2, Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getMessages, interpolate, isLocale } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
-import { displayFx, storedMarketCurrency, toDisplayMarket } from "@/lib/pricing";
-import { searchCatalog } from "@/services/catalog";
+import { displayFx, storedMarketCurrency } from "@/lib/pricing";
+import { pricesFromPrinting, searchCatalog } from "@/services/catalog";
 import { AddPrintingCard } from "./add-printing-card";
 
 export const metadata = { title: "Add cards" };
@@ -82,12 +82,12 @@ export default async function AddCardsPage({
               finishes={printing.finishes}
               currency={currency}
               query={query}
-              prices={printing.currentPrices
-                .filter((price) => price.currency === storedCurrency)
-                .map((price) => ({
-                  finish: price.finish,
-                  market: toDisplayMarket(price.market, fx),
-                }))}
+              prices={pricesFromPrinting(
+                printing.currentPrices,
+                printing.rawPrices,
+                storedCurrency,
+                fx,
+              )}
             />
           ))}
         </div>

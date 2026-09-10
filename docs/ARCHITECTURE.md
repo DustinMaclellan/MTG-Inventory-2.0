@@ -22,7 +22,7 @@ CAD is not published by Scryfall. When a user prefers CAD, the app reads USD and
 
 ## Catalog synchronization
 
-Interactive search queries the local indexed catalog first. When the catalog is cold or sparse, the server fetches Scryfall, persists exact printings and current/daily prices, then serves database results. `npm run catalog:sync` refreshes owned prices and newest catalog pages without coupling UI code to Scryfall.
+`npm run catalog:sync` loads Scryfall’s `default_cards` bulk file into PostgreSQL (paper printings only, with `rawPrices`). After that, Add Cards and deck search query the local catalog only. The daily `/api/cron/catalog-sync` job imports bulk only if the catalog is still small; otherwise it fetches a few newest-prints pages. Live Scryfall search is a cold-start fallback when fewer than 1,000 printings are stored.
 
 ## Billing
 
