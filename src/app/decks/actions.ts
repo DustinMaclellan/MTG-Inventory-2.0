@@ -44,6 +44,7 @@ export async function deleteDeckAction(formData: FormData): Promise<void> {
 const deckCardSchema = z.object({
   deckId: z.string().cuid(),
   cardId: z.string().cuid(),
+  printingId: z.string().cuid().optional(),
   quantity: z.coerce.number().int().min(1).max(99),
   isCommanderZone: z.preprocess((v) => v === "true", z.boolean()),
 });
@@ -62,17 +63,25 @@ export async function addDeckCardAction(
   });
   if (!deck) return { error: "Deck not found." };
 
-  await db.deckCard.upsert({
-    where: { deckId_cardId: { deckId: parsed.data.deckId, cardId: parsed.data.cardId } },
-    update: { quantity: parsed.data.quantity, isCommanderZone: parsed.data.isCommanderZone },
-    create: {
-      deckId: parsed.data.deckId,
-      cardId: parsed.data.cardId,
-      quantity: parsed.data.quantity,
-      isCommanderZone: parsed.data.isCommanderZone,
-    },
-  });
-  revalidatePath(`/decks/${parsed.data.deckId}`);
+  const { deckId, cardId, printingId, quantity, isCommanderZone } = parsed.data;
+
+  // Upsert by (deckId, cardPrintingId) — each printing is its own deck entry
+  const existing = printingId
+    ? await db.deckCard.findFirst({ where: { deckId, cardPrintingId: printingId } })
+    : await db.deckCard.findFirst({ where: { deckId, cardId, cardPrintingId: null } });
+
+  if (existing) {
+    await db.deckCard.update({
+      where: { id: existing.id },
+      data: { quantity, isCommanderZone },
+    });
+  } else {
+    await db.deckCard.create({
+      data: { deckId, cardId, cardPrintingId: printingId ?? null, quantity, isCommanderZone },
+    });
+  }
+
+  revalidatePath(`/decks/${deckId}`);
   return {};
 }
 

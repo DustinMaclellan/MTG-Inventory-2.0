@@ -2,27 +2,28 @@
 
 import Image from "next/image";
 import { useActionState, useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Check, Plus, Search } from "lucide-react";
 import { addDeckCardAction } from "@/app/decks/actions";
 import type { DeckFormState } from "@/app/decks/actions";
 
 export type SearchResult = {
-  cardId: string;
+  cardId: string;       // oracle card — used for dedup
+  printingId: string;   // specific printing being added
   name: string;
   typeLine: string | null;
   imageSmallUrl: string | null;
   setCode: string;
   setName: string;
   collectorNumber: string;
-  ownedQuantity: number;
+  ownedQuantity: number; // how many of THIS printing the user owns
 };
 
 export function DeckCardSearch({
   deckId,
-  existingCardIds,
+  existingPrintingIds,
 }: {
   deckId: string;
-  existingCardIds: string[];
+  existingPrintingIds: string[];
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -33,8 +34,7 @@ export function DeckCardSearch({
     setSearching(true);
     try {
       const res = await fetch(`/api/deck-search?q=${encodeURIComponent(q.trim())}`);
-      const data: SearchResult[] = await res.json();
-      setResults(data);
+      setResults(await res.json());
     } finally {
       setSearching(false);
     }
@@ -44,38 +44,33 @@ export function DeckCardSearch({
     <div className="space-y-3">
       {/* Search input */}
       <div className="relative">
-        <Search
-          size={16}
-          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-        />
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
         <input
-          className="field field-with-icon"
-          placeholder="Search cards to add…"
+          className="field field-with-icon text-sm"
+          placeholder="Card name…"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            search(e.target.value);
-          }}
+          onChange={(e) => { setQuery(e.target.value); search(e.target.value); }}
         />
       </div>
 
-      {/* Results */}
+      {/* Spinner */}
+      {searching && (
+        <p className="py-1 text-center text-xs text-zinc-600">Searching…</p>
+      )}
+
+      {/* Results — all printings of matching cards */}
       {results.length > 0 && (
-        <div className="panel divide-y divide-white/6 overflow-hidden">
-          {results.slice(0, 8).map((card) => (
+        <div className="divide-y divide-white/6 overflow-hidden rounded-xl border border-white/8">
+          {results.map((card) => (
             <SearchResultRow
-              key={card.cardId}
+              key={card.printingId}
               card={card}
               deckId={deckId}
-              alreadyAdded={existingCardIds.includes(card.cardId)}
-              onAdded={() => setQuery("")}
+              alreadyAdded={existingPrintingIds.includes(card.printingId)}
+              onAdded={() => { setQuery(""); setResults([]); }}
             />
           ))}
         </div>
-      )}
-
-      {searching && (
-        <p className="text-center text-xs text-zinc-600 py-2">Searching…</p>
       )}
     </div>
   );
@@ -97,61 +92,77 @@ function SearchResultRow({
     {},
   );
 
-  if (state.error) {
-    // Reset on next interaction
-  }
-
   return (
-    <div className="flex items-center gap-3 px-4 py-3">
-      {/* Card image */}
-      <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded bg-zinc-900">
-        {card.imageSmallUrl && (
-          <Image src={card.imageSmallUrl} alt="" fill sizes="32px" className="object-cover" />
-        )}
-      </div>
-
-      {/* Identity */}
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">{card.name}</p>
-        <p className="truncate text-xs text-zinc-600">
-          {card.setCode.toUpperCase()} · #{card.collectorNumber}
-          {card.ownedQuantity > 0 && (
-            <span className="ml-2 text-emerald-500">✓ Own {card.ownedQuantity}</span>
+    <div className="bg-zinc-950/60 p-3">
+      {/* Card identity */}
+      <div className="flex gap-3">
+        {/* Image */}
+        <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow">
+          {card.imageSmallUrl && (
+            <Image src={card.imageSmallUrl} alt="" fill sizes="44px" className="object-cover" />
           )}
-        </p>
+        </div>
+
+        <div className="min-w-0 flex-1 py-0.5">
+          <p className="text-sm font-semibold leading-snug">{card.name}</p>
+          {/* Full set name + code + collector number */}
+          <p className="mt-0.5 text-xs text-zinc-400">
+            {card.setName}
+          </p>
+          <p className="text-[11px] text-zinc-600">
+            {card.setCode.toUpperCase()} · #{card.collectorNumber}
+          </p>
+          {card.ownedQuantity > 0 ? (
+            <p className="mt-1 text-[11px] font-semibold text-emerald-500">
+              ✓ You own {card.ownedQuantity} of this printing
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] text-zinc-700">Not in your collection</p>
+          )}
+        </div>
       </div>
 
-      {/* Add form */}
+      {/* Controls */}
       <form
-        action={async (fd) => {
-          await formAction(fd);
-          onAdded();
-        }}
-        className="flex items-center gap-2 shrink-0"
+        action={async (fd) => { await formAction(fd); onAdded(); }}
+        className="mt-3 flex items-center gap-2"
       >
         <input type="hidden" name="deckId" value={deckId} />
         <input type="hidden" name="cardId" value={card.cardId} />
+        <input type="hidden" name="printingId" value={card.printingId} />
         <input type="hidden" name="isCommanderZone" value="false" />
+
+        <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Qty</label>
         <input
           name="quantity"
           type="number"
           min="1"
           max="99"
           defaultValue="1"
-          className="w-14 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-center text-sm outline-none focus:border-emerald-400/40"
+          className="w-16 rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-center text-sm outline-none focus:border-emerald-400/50"
           aria-label="Quantity"
         />
+
         <button
           disabled={pending || alreadyAdded}
-          title={alreadyAdded ? "Already in deck" : "Add to deck"}
-          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+          className={`ml-auto flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
             alreadyAdded
               ? "border border-emerald-400/30 text-emerald-500 cursor-default"
-              : "button-primary !rounded-lg !p-0"
+              : "bg-emerald-400 text-black hover:bg-emerald-300 disabled:opacity-50"
           }`}
         >
-          <Plus size={15} />
+          {alreadyAdded ? (
+            <><Check size={13} /> In deck</>
+          ) : pending ? (
+            "Adding…"
+          ) : (
+            <><Plus size={13} /> Add</>
+          )}
         </button>
+
+        {state.error && (
+          <p className="text-xs text-rose-400">{state.error}</p>
+        )}
       </form>
     </div>
   );

@@ -142,6 +142,7 @@ model CardPrinting {
   inventoryItems  InventoryItem[]
   currentPrices   CurrentPrice[]
   priceHistory    PriceHistory[]
+  deckCards       DeckCard[]
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
@@ -247,15 +248,18 @@ model Deck {
 }
 
 model DeckCard {
-  id              String  @id @default(cuid())
+  id              String        @id @default(cuid())
   deckId          String
   cardId          String
-  quantity        Int     @default(1)
-  isCommanderZone Boolean @default(false)
-  deck            Deck    @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  card            Card    @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  cardPrintingId  String?
+  quantity        Int           @default(1)
+  isCommanderZone Boolean       @default(false)
+  deck            Deck          @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  card            Card          @relation(fields: [cardId], references: [id], onDelete: Restrict)
+  printing        CardPrinting? @relation(fields: [cardPrintingId], references: [id], onDelete: SetNull)
 
-  @@unique([deckId, cardId])
+  @@unique([deckId, cardPrintingId])
   @@index([deckId])
   @@index([cardId])
+  @@index([cardPrintingId])
 }

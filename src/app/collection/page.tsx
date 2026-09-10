@@ -56,9 +56,10 @@ export default async function CollectionPage({
           </Link>
         </header>
 
-        {/* Search / storage filters */}
-        <form className="panel mb-5 grid gap-3 p-4 sm:grid-cols-[1fr_220px_auto]">
-          <label className="relative block">
+        {/* Filters */}
+        <form className="panel mb-5 flex flex-wrap gap-3 p-4">
+          {/* Text search */}
+          <label className="relative flex-1 min-w-[180px]">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input
               name="q"
@@ -67,10 +68,12 @@ export default async function CollectionPage({
               className="w-full rounded-xl border border-white/8 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-zinc-700 focus:border-emerald-400/40"
             />
           </label>
+
+          {/* Storage */}
           <select
             name="storage"
             defaultValue={storage}
-            className="rounded-xl border border-white/8 bg-black/30 px-3 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
           >
             <option value="">All storage</option>
             <option value="unassigned">Unassigned</option>
@@ -78,8 +81,35 @@ export default async function CollectionPage({
               <option key={loc} value={loc}>{loc}</option>
             ))}
           </select>
+
+          {/* Condition */}
+          <select
+            name="condition"
+            defaultValue={condition}
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+          >
+            <option value="">All conditions</option>
+            <option value="NEAR_MINT">Near Mint</option>
+            <option value="LIGHTLY_PLAYED">Lightly Played</option>
+            <option value="MODERATELY_PLAYED">Moderately Played</option>
+            <option value="HEAVILY_PLAYED">Heavily Played</option>
+            <option value="DAMAGED">Damaged</option>
+          </select>
+
+          {/* Finish */}
+          <select
+            name="finish"
+            defaultValue={finish}
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+          >
+            <option value="">All finishes</option>
+            <option value="NONFOIL">Nonfoil</option>
+            <option value="FOIL">Foil</option>
+            <option value="ETCHED">Etched</option>
+          </select>
+
           <div className="flex gap-2">
-            <button type="submit" className="button-primary flex-1 text-sm sm:flex-none">Search</button>
+            <button type="submit" className="button-primary text-sm">Search</button>
             {filtersActive && (
               <Link href="/collection" className="panel px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
                 Clear all
@@ -104,8 +134,6 @@ export default async function CollectionPage({
           currency={user.preferredCurrency}
           filtersActive={filtersActive}
           currentQ={q}
-          currentCondition={condition}
-          currentFinish={finish}
         />
 
         {/* Pagination */}

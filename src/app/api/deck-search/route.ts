@@ -14,77 +14,63 @@ export async function GET(request: Request) {
   );
   if (!q.success) return NextResponse.json([]);
 
-  // Search oracle cards by name (case-insensitive, first 10 matches)
-  const cards = await db.card.findMany({
+  // Search every printing so the user can pick the exact version they want
+  const printings = await db.cardPrinting.findMany({
     where: {
       OR: [
-        { normalizedName: { contains: q.data.toLowerCase() } },
-        { name: { contains: q.data, mode: "insensitive" } },
+        { card: { normalizedName: { contains: q.data.toLowerCase() } } },
+        { card: { name: { contains: q.data, mode: "insensitive" } } },
       ],
     },
-    take: 10,
-    include: {
-      printings: {
-        take: 1,
-        orderBy: { releasedAt: "desc" },
-        select: {
-          imageSmallUrl: true,
-          set: { select: { code: true, name: true } },
-          collectorNumber: true,
-        },
+    take: 30,
+    orderBy: [
+      { card: { name: "asc" } },
+      { releasedAt: "desc" },
+    ],
+    select: {
+      id: true,
+      imageSmallUrl: true,
+      collectorNumber: true,
+      releasedAt: true,
+      card: {
+        select: { id: true, name: true, typeLine: true },
       },
+      set: { select: { code: true, name: true } },
     },
   });
 
-  // For each card, check how many the user owns (across any printing)
-  const cardIds = cards.map((c) => c.id);
+  if (printings.length === 0) return NextResponse.json([]);
+
+  // Per-printing owned quantity from the user's collection
+  const printingIds = printings.map((p) => p.id);
   const collection = await db.collection.findFirst({
     where: { userId: user.id },
     select: { id: true },
   });
 
-  const owned =
-    collection && cardIds.length > 0
-      ? await db.inventoryItem.groupBy({
-          by: ["cardPrintingId"],
-          where: {
-            collectionId: collection.id,
-            cardPrinting: { cardId: { in: cardIds } },
-          },
-          _sum: { quantity: true },
-        })
-      : [];
-
-  // Map printing cardId → owned quantity
-  const printingIds = owned.map((o) => o.cardPrintingId);
-  const printingToCard =
-    printingIds.length > 0
-      ? await db.cardPrinting.findMany({
-          where: { id: { in: printingIds } },
-          select: { id: true, cardId: true },
-        })
-      : [];
-
-  const ownedByCardId = new Map<string, number>();
-  for (const pt of printingToCard) {
-    const match = owned.find((o) => o.cardPrintingId === pt.id);
-    const qty = match?._sum.quantity ?? 0;
-    ownedByCardId.set(pt.cardId, (ownedByCardId.get(pt.cardId) ?? 0) + qty);
+  const ownedByPrintingId = new Map<string, number>();
+  if (collection) {
+    const owned = await db.inventoryItem.groupBy({
+      by: ["cardPrintingId"],
+      where: { collectionId: collection.id, cardPrintingId: { in: printingIds } },
+      _sum: { quantity: true },
+    });
+    for (const o of owned) {
+      ownedByPrintingId.set(o.cardPrintingId, o._sum.quantity ?? 0);
+    }
   }
 
-  const results = cards.map((card) => {
-    const printing = card.printings[0];
-    return {
-      cardId: card.id,
-      name: card.name,
-      typeLine: card.typeLine,
-      imageSmallUrl: printing?.imageSmallUrl ?? null,
-      setCode: printing?.set.code ?? "",
-      setName: printing?.set.name ?? "",
-      collectorNumber: printing?.collectorNumber ?? "",
-      ownedQuantity: ownedByCardId.get(card.id) ?? 0,
-    };
-  });
+  const results = printings.map((p) => ({
+    cardId: p.card.id,
+    printingId: p.id,
+    name: p.card.name,
+    typeLine: p.card.typeLine,
+    imageSmallUrl: p.imageSmallUrl,
+    setCode: p.set.code,
+    setName: p.set.name,
+    collectorNumber: p.collectorNumber,
+    ownedQuantity: ownedByPrintingId.get(p.id) ?? 0,
+  }));
 
   return NextResponse.json(results);
 }
