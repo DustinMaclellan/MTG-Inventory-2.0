@@ -57,16 +57,18 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       <main>{children}</main>
 
       {/* ── Footer ────────────────────────────────────────── */}
-      <footer className="border-t border-white/6 px-5 py-12 text-xs text-zinc-600">
-        <div className="mx-auto flex max-w-6xl flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
-          {/* Brand + legal */}
-          <div className="flex flex-col gap-3 max-w-md leading-5">
-            <Link href="/" className="flex items-center gap-2.5 mb-1">
-              <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-400 text-black">
-                <Sparkles size={13} />
-              </span>
-              <strong className="text-xs text-zinc-400">Mystic Ledger</strong>
-            </Link>
+      <footer className="border-t border-white/6 px-5 py-10 text-xs text-zinc-600">
+        <div className="mx-auto max-w-6xl space-y-6">
+          {/* Brand */}
+          <Link href="/" className="flex items-center gap-2.5 w-fit">
+            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-400 text-black">
+              <Sparkles size={13} />
+            </span>
+            <strong className="text-xs text-zinc-400">Mystic Ledger</strong>
+          </Link>
+
+          {/* Legal text */}
+          <div className="max-w-xl space-y-2 leading-5">
             <p>Card prices and imagery come from Scryfall. Images are served from cards.scryfall.io.</p>
             <p>
               Magic: The Gathering is a trademark of Wizards of the Coast LLC. Mystic Ledger is
@@ -75,9 +77,8 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
             </p>
           </div>
 
-          {/* Links */}
-          <div className="flex flex-col gap-2">
-            <p className="text-[10px] uppercase tracking-widest text-zinc-700 mb-1">Links</p>
+          {/* Bottom row: links */}
+          <div className="flex items-center gap-5 border-t border-white/5 pt-6">
             {footerLinks.map((link) => (
               <Link
                 key={link.href}

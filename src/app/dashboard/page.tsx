@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, Clock3, Plus, Search, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
@@ -142,28 +143,46 @@ export default async function DashboardPage() {
           </article>
 
           {/* Largest position */}
-          <article className="panel p-6">
-            <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
-              Largest position
-            </p>
+          <article className="panel overflow-hidden">
+            <div className="border-b border-white/6 px-5 py-4">
+              <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
+                Largest position
+              </p>
+            </div>
             {mostValuable ? (
-              <>
-                <h2 className="mt-5 text-lg font-semibold leading-tight">
-                  {mostValuable.item.cardPrinting.name}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500">
-                  {mostValuable.item.cardPrinting.set.name}
-                </p>
-                <p className="mt-8 text-3xl font-semibold tracking-tight">
-                  {formatMoney(mostValuable.value, currency)}
-                </p>
-                <p className="mt-1 text-xs text-zinc-600">
-                  {mostValuable.item.quantity} {mostValuable.item.quantity === 1 ? "copy" : "copies"} ·{" "}
-                  {mostValuable.item.finish.toLowerCase()}
-                </p>
-              </>
+              <div className="flex gap-4 p-5">
+                {mostValuable.item.cardPrinting.imageSmallUrl && (
+                  <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-lg">
+                    <Image
+                      src={mostValuable.item.cardPrinting.imageSmallUrl}
+                      alt={mostValuable.item.cardPrinting.name}
+                      fill
+                      sizes="80px"
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0 flex flex-col justify-between">
+                  <div>
+                    <h2 className="font-semibold leading-tight">
+                      {mostValuable.item.cardPrinting.name}
+                    </h2>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {mostValuable.item.cardPrinting.set.name}
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {mostValuable.item.quantity}{" "}
+                      {mostValuable.item.quantity === 1 ? "copy" : "copies"} ·{" "}
+                      {mostValuable.item.finish.charAt(0) + mostValuable.item.finish.slice(1).toLowerCase()}
+                    </p>
+                  </div>
+                  <p className="mt-4 text-2xl font-semibold tracking-tight">
+                    {formatMoney(mostValuable.value, currency)}
+                  </p>
+                </div>
+              </div>
             ) : (
-              <p className="mt-5 text-sm leading-6 text-zinc-500">
+              <p className="px-5 py-8 text-sm leading-6 text-zinc-500">
                 Your largest position by market value will appear here once prices are synced.
               </p>
             )}
