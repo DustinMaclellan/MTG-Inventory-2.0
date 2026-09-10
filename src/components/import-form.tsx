@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState } from "react";
+import type { Finish } from "@prisma/client";
 import { ChevronDown } from "lucide-react";
 import {
   commitImportAction,
@@ -9,6 +10,7 @@ import {
 } from "@/app/actions";
 import { interpolate } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
+import { availableFinishes, pickFinish } from "@/lib/finish";
 
 const template = `Deck
 4 Mana Crypt (2XM) 11
@@ -16,6 +18,19 @@ const template = `Deck
 1 Rhystic Study`;
 
 type ImportCandidate = NonNullable<ImportPreviewState["choices"]>[number]["candidates"][number];
+
+function finishOptionsFor(
+  candidate: ImportCandidate | undefined,
+  lineFinish: Finish,
+  specified: boolean,
+) {
+  return availableFinishes(candidate?.finishes ?? [], lineFinish, specified);
+}
+
+function finishLabels(finishes: Finish[], labels: Record<Finish, string>) {
+  if (!finishes.length) return "";
+  return finishes.map((finish) => labels[finish]).join(" · ");
+}
 
 function CardArt({ src, alt, className = "" }: { src: string | null; alt: string; className?: string }) {
   return (
@@ -36,17 +51,22 @@ function PrintingPicker({
   selectedId,
   onSelect,
   selectLabel,
+  finishNames,
 }: {
   candidates: ImportCandidate[];
   selectedId: string;
   onSelect: (printingId: string) => void;
   selectLabel: string;
+  finishNames: Record<Finish, string>;
 }) {
   return (
     <div className="max-h-[min(28rem,50vh)] space-y-3 overflow-y-auto pr-0.5" role="listbox" aria-label={selectLabel}>
       {candidates.map((candidate) => {
         const selected = selectedId === candidate.printingId;
-        const label = `${candidate.name} · ${candidate.setCode.toUpperCase()} #${candidate.collectorNumber}`;
+        const finishes = finishLabels(candidate.finishes, finishNames);
+        const label = `${candidate.name} · ${candidate.setCode.toUpperCase()} #${candidate.collectorNumber}${
+          finishes ? ` · ${finishes}` : ""
+        }`;
         return (
           <button
             key={candidate.printingId}
@@ -71,6 +91,7 @@ function PrintingPicker({
               <p className="truncate text-xs text-zinc-500">{candidate.setName}</p>
               <p className="text-[11px] text-zinc-600">
                 {candidate.setCode.toUpperCase()} · #{candidate.collectorNumber}
+                {finishes ? ` · ${finishes}` : ""}
               </p>
             </div>
           </button>
@@ -89,11 +110,13 @@ export function ImportForm() {
   const recognized = state.recognized ?? [];
   const choices = state.choices ?? [];
   const [picks, setPicks] = useState<Record<number, string>>({});
+  const [finishPicks, setFinishPicks] = useState<Record<number, Finish>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [list, setList] = useState(template);
 
   useEffect(() => {
     setPicks({});
+    setFinishPicks({});
     setOpenRow(null);
   }, [state.choices]);
 
@@ -103,19 +126,23 @@ export function ImportForm() {
         const printingId = picks[choice.row];
         const printing = choice.candidates.find((candidate) => candidate.printingId === printingId);
         if (!printing) return [];
+        const finish = pickFinish(
+          finishOptionsFor(printing, choice.finish, Boolean(choice.finishSpecified)),
+          finishPicks[choice.row] ?? choice.finish,
+        );
         return [
           {
             printingId: printing.printingId,
             quantity: choice.quantity,
             condition: choice.condition,
-            finish: choice.finish,
+            finish,
             language: choice.language,
             purchasePrice: choice.purchasePrice,
             storageLocation: choice.storageLocation,
           },
         ];
       }),
-    [choices, picks],
+    [choices, picks, finishPicks],
   );
 
   const readyCount = recognized.length + selectedRows.length;
@@ -154,14 +181,20 @@ export function ImportForm() {
               const selectedId = picks[choice.row] ?? "";
               const selected = choice.candidates.find((candidate) => candidate.printingId === selectedId);
               const preview = selected ?? choice.candidates[0];
+              const finishOptions = selected
+                ? finishOptionsFor(selected, choice.finish, Boolean(choice.finishSpecified))
+                : [];
+              const finish = pickFinish(finishOptions, finishPicks[choice.row] ?? choice.finish);
               const open = openRow === choice.row;
+              const showFinishSelect = Boolean(selected) && finishOptions.length > 1;
               return (
                 <li key={choice.row} className="rounded-xl border border-white/8 bg-black/20">
+                  <div className="flex items-center gap-2 pr-3">
                   <button
                     type="button"
                     aria-expanded={open}
                     onClick={() => setOpenRow(open ? null : choice.row)}
-                    className="flex w-full items-center gap-3 p-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 p-3 text-left"
                   >
                     <CardArt
                       src={preview?.imageSmallUrl ?? null}
@@ -176,14 +209,14 @@ export function ImportForm() {
                         <>
                           <p className="truncate text-xs text-emerald-400">{selected.setName}</p>
                           <p className="text-[11px] text-zinc-600">
-                            {selected.setCode.toUpperCase()} · #{selected.collectorNumber} ·{" "}
-                            {m.finish[choice.finish]}
+                            {selected.setCode.toUpperCase()} · #{selected.collectorNumber}
+                            {selected.finishes.length
+                              ? ` · ${finishLabels(selected.finishes, m.finish)}`
+                              : ""}
                           </p>
                         </>
                       ) : (
-                        <p className="mt-0.5 text-[11px] text-zinc-500">
-                          {m.imports.selectPrinting} · {m.finish[choice.finish]}
-                        </p>
+                        <p className="mt-0.5 text-[11px] text-zinc-500">{m.imports.selectPrinting}</p>
                       )}
                     </div>
                     <ChevronDown
@@ -191,6 +224,35 @@ export function ImportForm() {
                       className={`shrink-0 text-zinc-500 transition-transform ${open ? "rotate-180" : ""}`}
                     />
                   </button>
+                  {showFinishSelect && (
+                    <>
+                      <label className="sr-only" htmlFor={`import-finish-${choice.row}`}>
+                        {m.add.finish}
+                      </label>
+                      <select
+                        id={`import-finish-${choice.row}`}
+                        value={finish}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          setFinishPicks((current) => ({
+                            ...current,
+                            [choice.row]: event.target.value as Finish,
+                          }))
+                        }
+                        className="h-10 w-[7.5rem] shrink-0 rounded-xl border border-white/10 bg-black/40 py-0 pr-8 pl-3 text-xs text-zinc-200 outline-none focus:border-emerald-400/50"
+                      >
+                        {finishOptions.map((option) => (
+                          <option key={option} value={option}>
+                            {m.finish[option]}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  )}
+                  {selected && finishOptions.length === 1 && (
+                    <span className="shrink-0 pr-1 text-[11px] text-zinc-500">{m.finish[finish]}</span>
+                  )}
+                  </div>
                   {open && (
                     <div className="border-t border-white/8 px-3 py-4">
                       <p className="mb-3 text-[11px] text-zinc-500">
@@ -200,8 +262,19 @@ export function ImportForm() {
                         candidates={choice.candidates}
                         selectedId={selectedId}
                         selectLabel={m.imports.pickPrintingSr}
+                        finishNames={m.finish}
                         onSelect={(printingId) => {
+                          const printing = choice.candidates.find(
+                            (candidate) => candidate.printingId === printingId,
+                          );
                           setPicks((current) => ({ ...current, [choice.row]: printingId }));
+                          setFinishPicks((current) => ({
+                            ...current,
+                            [choice.row]: pickFinish(
+                              finishOptionsFor(printing, choice.finish, Boolean(choice.finishSpecified)),
+                              current[choice.row] ?? choice.finish,
+                            ),
+                          }));
                           setOpenRow(null);
                         }}
                       />

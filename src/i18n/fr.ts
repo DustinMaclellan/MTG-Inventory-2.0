@@ -127,6 +127,7 @@ export const fr = {
     lotsSelectedPlural: "{count} lots sélectionnés",
     storagePlaceholder: "Rangement…",
     conditionPlaceholder: "État…",
+    finishPlaceholder: "Finition…",
     deleteConfirm: "Supprimer définitivement {count} lot ? Cette action est irréversible.",
     deleteConfirmPlural: "Supprimer définitivement {count} lots ? Cette action est irréversible.",
     deleteCount: "Supprimer {count}",

@@ -1,5 +1,6 @@
 import type { Condition, Finish } from "@prisma/client";
 import { db } from "@/lib/db";
+import { coerceFinish } from "@/lib/finish";
 import { scryfall } from "@/services/scryfall";
 import type { CsvInventoryRow } from "./csv";
 
@@ -10,6 +11,7 @@ export type ImportCandidate = {
   setName: string;
   collectorNumber: string;
   imageSmallUrl: string | null;
+  finishes: Finish[];
 };
 
 export type ImportChoice = {
@@ -18,6 +20,7 @@ export type ImportChoice = {
   quantity: number;
   condition: Condition;
   finish: Finish;
+  finishSpecified: boolean;
   language: string;
   purchasePrice?: number;
   storageLocation?: string;
@@ -46,6 +49,7 @@ function asCandidate(printing: {
   name: string;
   collectorNumber: string;
   imageSmallUrl: string | null;
+  finishes: Finish[];
   set: { code: string; name: string; setType: string | null };
 }): ImportCandidate {
   return {
@@ -55,6 +59,7 @@ function asCandidate(printing: {
     setName: printing.set.name,
     collectorNumber: printing.collectorNumber,
     imageSmallUrl: printing.imageSmallUrl,
+    finishes: printing.finishes,
   };
 }
 
@@ -239,6 +244,7 @@ function mergeImportRows(rows: CsvInventoryRow[]) {
     const existing = merged.get(key);
     if (existing) {
       existing.quantity += row.quantity;
+      existing.finishSpecified = Boolean(existing.finishSpecified || row.finishSpecified);
       continue;
     }
     merged.set(key, { ...row });
@@ -300,7 +306,8 @@ export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
         : undefined;
     if (pool.length === 1 || exact) {
       const pick = exact ?? pool[0];
-      const key = `${pick.printingId}:${row.finish}:${row.condition}:${row.language}`;
+      const finish = coerceFinish(row.finish, pick.finishes);
+      const key = `${pick.printingId}:${finish}:${row.condition}:${row.language}`;
       if (seen.has(key)) duplicates += 1;
       seen.add(key);
       recognized.push({
@@ -312,7 +319,7 @@ export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
         collectorNumber: pick.collectorNumber,
         quantity: row.quantity,
         condition: row.condition,
-        finish: row.finish,
+        finish,
         language: row.language,
         purchasePrice: row.purchasePrice,
         storageLocation: row.storageLocation,
@@ -327,6 +334,7 @@ export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
       quantity: row.quantity,
       condition: row.condition,
       finish: row.finish,
+      finishSpecified: Boolean(row.finishSpecified),
       language: row.language,
       purchasePrice: row.purchasePrice,
       storageLocation: row.storageLocation,

@@ -49,7 +49,7 @@ export function formatMoney(
   currency: "USD" | "CAD" | "EUR" = "USD",
   locale: AppLocale = "en",
 ) {
-  if (value === null) return locale === "fr" ? "Prix indisponible" : "Pricing unavailable";
+  if (value === null) return "—";
   return new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-US", {
     style: "currency",
     currency,

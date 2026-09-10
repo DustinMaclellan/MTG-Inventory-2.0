@@ -23,7 +23,7 @@ export function parseDecklist(text: string): CsvParseResult {
 
   lines.forEach((raw, index) => {
     const row = index + 1;
-    const { finish, line: marked } = extractFinish(raw);
+    const { finish, specified, line: marked } = extractFinish(raw);
     const line = cleanDecklistLine(marked);
     if (!line) return;
     if (line.startsWith("#") || line.startsWith("//")) return;
@@ -48,6 +48,7 @@ export function parseDecklist(text: string): CsvParseResult {
       quantity: parsed.quantity,
       condition: Condition.NEAR_MINT,
       finish,
+      finishSpecified: specified,
       language: "en",
     });
   });
@@ -55,22 +56,22 @@ export function parseDecklist(text: string): CsvParseResult {
   return { valid, invalid };
 }
 
-function extractFinish(raw: string): { finish: Finish; line: string } {
+function extractFinish(raw: string): { finish: Finish; specified: boolean; line: string } {
   let line = raw.replace(/\s*\*F\*/gi, " ").replace(/\s*\*FOIL\*/gi, " ");
   const etched = /(?:\s+|\s*[(\[]\s*)(?:etched(?:\s+foil)?|etch)(?:\s*[)\]])?\s*$/i;
   const nonfoil = /(?:\s+|\s*[(\[]\s*)(?:nonfoil|non-foil|regular)(?:\s*[)\]])?\s*$/i;
   const foil = /(?:\s+|\s*[(\[]\s*)foil(?:\s*[)\]])?\s*$/i;
 
   if (etched.test(line)) {
-    return { finish: Finish.ETCHED, line: line.replace(etched, "").trim() };
+    return { finish: Finish.ETCHED, specified: true, line: line.replace(etched, "").trim() };
   }
   if (nonfoil.test(line)) {
-    return { finish: Finish.NONFOIL, line: line.replace(nonfoil, "").trim() };
+    return { finish: Finish.NONFOIL, specified: true, line: line.replace(nonfoil, "").trim() };
   }
   if (foil.test(line) || /\*F\*/i.test(raw) || /\*FOIL\*/i.test(raw)) {
-    return { finish: Finish.FOIL, line: line.replace(foil, "").trim() };
+    return { finish: Finish.FOIL, specified: true, line: line.replace(foil, "").trim() };
   }
-  return { finish: Finish.NONFOIL, line };
+  return { finish: Finish.NONFOIL, specified: false, line };
 }
 
 function cleanDecklistLine(raw: string) {

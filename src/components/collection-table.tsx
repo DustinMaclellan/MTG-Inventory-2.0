@@ -310,6 +310,16 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
               placeholder={m.collection.storagePlaceholder}
             />
             <select
+              name="finish"
+              defaultValue=""
+              className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-emerald-400/50"
+            >
+              <option value="">{m.collection.finishPlaceholder}</option>
+              <option value="NONFOIL">{m.finish.NONFOIL}</option>
+              <option value="FOIL">{m.finish.FOIL}</option>
+              <option value="ETCHED">{m.finish.ETCHED}</option>
+            </select>
+            <select
               name="condition"
               defaultValue=""
               className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-emerald-400/50"

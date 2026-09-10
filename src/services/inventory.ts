@@ -3,6 +3,7 @@ import "server-only";
 import { Condition, Finish, Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { coerceFinish } from "@/lib/finish";
 import { calculatePortfolio } from "@/lib/money";
 import { displayFx, scryfallPriceWhere, toDisplayMarket } from "@/lib/pricing";
 
@@ -12,6 +13,30 @@ export type InventoryFilters = {
   condition?: string;
   finish?: string;
 };
+
+async function healUnsupportedInventoryFinishes(userId: string) {
+  const items = await db.inventoryItem.findMany({
+    where: { collection: { userId } },
+    select: {
+      id: true,
+      finish: true,
+      cardPrinting: { select: { finishes: true } },
+    },
+  });
+  const groups = new Map<Finish, string[]>();
+  for (const item of items) {
+    const next = coerceFinish(item.finish, item.cardPrinting.finishes);
+    if (next === item.finish) continue;
+    const ids = groups.get(next) ?? [];
+    ids.push(item.id);
+    groups.set(next, ids);
+  }
+  await Promise.all(
+    [...groups].map(([finish, ids]) =>
+      db.inventoryItem.updateMany({ where: { id: { in: ids } }, data: { finish } }),
+    ),
+  );
+}
 
 function inventoryWhere(userId: string, filters: InventoryFilters = {}): Prisma.InventoryItemWhereInput {
   const query = filters.q?.trim();
@@ -68,6 +93,7 @@ function withDisplayFx<T extends { cardPrinting: { currentPrices: Array<{ market
 
 export async function getInventory(page = 1, pageSize = 25, filters: InventoryFilters = {}) {
   const user = await requireEntitlement();
+  await healUnsupportedInventoryFinishes(user.id);
   const where = inventoryWhere(user.id, filters);
   const fx = await displayFx(user.preferredCurrency);
   const [items, total, storageLocations] = await db.$transaction([
@@ -111,6 +137,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
 
 export async function getStorageOverview() {
   const user = await requireEntitlement();
+  await healUnsupportedInventoryFinishes(user.id);
   const fx = await displayFx(user.preferredCurrency);
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
@@ -211,6 +238,7 @@ export async function getStorageOverview() {
 
 export async function getDashboard() {
   const user = await requireEntitlement();
+  await healUnsupportedInventoryFinishes(user.id);
   const fx = await displayFx(user.preferredCurrency);
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },

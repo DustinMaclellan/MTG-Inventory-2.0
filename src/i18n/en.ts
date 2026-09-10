@@ -125,6 +125,7 @@ export const en = {
     lotsSelectedPlural: "{count} lots selected",
     storagePlaceholder: "Storage…",
     conditionPlaceholder: "Condition…",
+    finishPlaceholder: "Finish…",
     deleteConfirm: "Permanently delete {count} lot? This cannot be undone.",
     deleteConfirmPlural: "Permanently delete {count} lots? This cannot be undone.",
     deleteCount: "Delete {count}",

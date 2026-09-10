@@ -25,6 +25,7 @@ import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { clientIpFrom, rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
+import { coerceFinish } from "@/lib/finish";
 import { parseImportPaste } from "@/services/import-parse";
 import { resolveImportLines, type ImportChoice, type RecognizedImportRow } from "@/services/import-resolve";
 
@@ -338,6 +339,7 @@ const bulkUpdateSchema = z.object({
   ids: z.array(z.string().cuid()).min(1).max(500),
   storageLocation: z.string().trim().max(120).optional(),
   condition: z.enum(Condition).optional(),
+  finish: z.enum(Finish).optional(),
 });
 
 export type BulkUpdateState = { error?: string; updated?: number; deleted?: number };
@@ -352,26 +354,52 @@ export async function bulkUpdateInventoryAction(
     ids: formData.getAll("ids"),
     storageLocation: formData.get("storageLocation") || undefined,
     condition: formData.get("condition") || undefined,
+    finish: formData.get("finish") || undefined,
   };
   const parsed = bulkUpdateSchema.safeParse(raw);
   if (!parsed.success) return { error: "Invalid selection or update values." };
 
-  const { ids, storageLocation, condition } = parsed.data;
-  if (!storageLocation && !condition) return { error: "Choose at least one field to update." };
+  const { ids, storageLocation, condition, finish } = parsed.data;
+  if (!storageLocation && !condition && !finish) return { error: "Choose at least one field to update." };
 
+  const owned = { id: { in: ids }, collection: { userId: user.id } };
   const data: { storageLocation?: string | null; condition?: Condition } = {};
   if (storageLocation !== undefined) data.storageLocation = storageLocation || null;
   if (condition !== undefined) data.condition = condition;
 
-  const result = await db.inventoryItem.updateMany({
-    where: { id: { in: ids }, collection: { userId: user.id } },
-    data,
-  });
+  let updated = 0;
+  if (storageLocation !== undefined || condition !== undefined) {
+    const result = await db.inventoryItem.updateMany({ where: owned, data });
+    updated = result.count;
+  }
+
+  if (finish) {
+    const items = await db.inventoryItem.findMany({
+      where: owned,
+      select: { id: true, cardPrinting: { select: { finishes: true } } },
+    });
+    const compatible = items
+      .filter((item) => {
+        const available = item.cardPrinting.finishes;
+        return available.length === 0 || available.includes(finish);
+      })
+      .map((item) => item.id);
+    if (compatible.length === 0 && !storageLocation && !condition) {
+      return { error: "That finish is not available for the selected printings." };
+    }
+    if (compatible.length > 0) {
+      const result = await db.inventoryItem.updateMany({
+        where: { id: { in: compatible } },
+        data: { finish },
+      });
+      updated = Math.max(updated, result.count);
+    }
+  }
 
   revalidatePath("/collection");
   revalidatePath("/dashboard");
   revalidatePath("/storage");
-  return { updated: result.count };
+  return { updated };
 }
 
 export type RenameStorageState = { error?: string };
@@ -473,8 +501,20 @@ export async function commitImportAction(formData: FormData) {
   });
   if (!collection) throw new Error("Collection not found");
 
+  const printings = await db.cardPrinting.findMany({
+    where: { id: { in: [...new Set(rows.map((row) => row.printingId))] } },
+    select: { id: true, finishes: true },
+  });
+  const allowed = new Map(printings.map((printing) => [printing.id, printing.finishes]));
+  const valid = rows.flatMap((row) => {
+    const available = allowed.get(row.printingId);
+    if (!available) return [];
+    return [{ ...row, finish: coerceFinish(row.finish, available) }];
+  });
+  if (valid.length === 0) throw new Error("None of those printings could be imported");
+
   await db.$transaction(
-    rows.map((row) =>
+    valid.map((row) =>
       db.inventoryItem.create({
         data: {
           collectionId: collection.id,

@@ -51,6 +51,7 @@ export type CsvInventoryRow = {
   quantity: number;
   condition: Condition;
   finish: Finish;
+  finishSpecified?: boolean;
   language: string;
   purchasePrice?: number;
   storageLocation?: string;
@@ -97,6 +98,7 @@ export function parseInventoryCsv(csv: string): CsvParseResult {
       quantity: parsed.data.quantity,
       condition,
       finish,
+      finishSpecified: Boolean(record.finish?.trim()),
       language: parsed.data.language,
       purchasePrice: parsed.data.purchase_price,
       storageLocation: parsed.data.storage_location,

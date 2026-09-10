@@ -20,10 +20,10 @@ describe("parseDecklist", () => {
 1 Lightning Bolt nonfoil`);
     expect(result.invalid).toEqual([]);
     expect(result.valid).toMatchObject([
-      { cardName: "Mana Crypt", quantity: 4, finish: "FOIL" },
-      { cardName: "Sol Ring", setCode: "cmm", collectorNumber: "410", finish: "FOIL" },
-      { cardName: "Rhystic Study", finish: "ETCHED" },
-      { cardName: "Lightning Bolt", finish: "NONFOIL" },
+      { cardName: "Mana Crypt", quantity: 4, finish: "FOIL", finishSpecified: true },
+      { cardName: "Sol Ring", setCode: "cmm", collectorNumber: "410", finish: "FOIL", finishSpecified: true },
+      { cardName: "Rhystic Study", finish: "ETCHED", finishSpecified: true },
+      { cardName: "Lightning Bolt", finish: "NONFOIL", finishSpecified: true },
     ]);
   });
 
@@ -44,10 +44,20 @@ https://example.com/deck`);
     ]);
   });
 
+  it("keeps lettered collector numbers like Special Guests neon ink", () => {
+    const result = parseDecklist("1 Mana Crypt (SPG) 17a");
+    expect(result.valid[0]).toMatchObject({
+      cardName: "Mana Crypt",
+      setCode: "spg",
+      collectorNumber: "17a",
+      finish: "NONFOIL",
+    });
+  });
+
   it("keeps name-only and set-only lines for later printing choice", () => {
     const result = parseDecklist(`Mana Crypt
 1 Rhystic Study (PCY)`);
-    expect(result.valid[0]).toMatchObject({ cardName: "Mana Crypt", setCode: "", collectorNumber: "", quantity: 1 });
+    expect(result.valid[0]).toMatchObject({ cardName: "Mana Crypt", setCode: "", collectorNumber: "", quantity: 1, finishSpecified: false });
     expect(result.valid[1]).toMatchObject({ cardName: "Rhystic Study", setCode: "pcy", collectorNumber: "" });
   });
 });
