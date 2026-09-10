@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hasEntitlement } from "@/lib/entitlements";
+import { searchCatalog } from "@/services/catalog";
 
 export const runtime = "nodejs";
 
@@ -16,34 +17,9 @@ export async function GET(request: Request) {
   );
   if (!q.success) return NextResponse.json([]);
 
-  // Search every printing so the user can pick the exact version they want
-  const printings = await db.cardPrinting.findMany({
-    where: {
-      OR: [
-        { card: { normalizedName: { contains: q.data.toLowerCase() } } },
-        { card: { name: { contains: q.data, mode: "insensitive" } } },
-      ],
-    },
-    take: 30,
-    orderBy: [
-      { card: { name: "asc" } },
-      { releasedAt: "desc" },
-    ],
-    select: {
-      id: true,
-      imageSmallUrl: true,
-      collectorNumber: true,
-      releasedAt: true,
-      card: {
-        select: { id: true, name: true, typeLine: true },
-      },
-      set: { select: { code: true, name: true } },
-    },
-  });
-
+  const printings = await searchCatalog(q.data);
   if (printings.length === 0) return NextResponse.json([]);
 
-  // Per-printing owned quantity from the user's collection
   const printingIds = printings.map((p) => p.id);
   const collection = await db.collection.findFirst({
     where: { userId: user.id },
@@ -63,9 +39,9 @@ export async function GET(request: Request) {
   }
 
   const results = printings.map((p) => ({
-    cardId: p.card.id,
+    cardId: p.cardId,
     printingId: p.id,
-    name: p.card.name,
+    name: p.name,
     typeLine: p.card.typeLine,
     imageSmallUrl: p.imageSmallUrl,
     setCode: p.set.code,

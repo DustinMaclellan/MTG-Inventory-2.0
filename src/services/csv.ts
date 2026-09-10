@@ -4,9 +4,15 @@ import { z } from "zod";
 
 const rowSchema = z.object({
   card_name: z.string().trim().min(1),
-  set_code: z.string().trim().min(1),
-  collector_number: z.string().trim().min(1),
-  quantity: z.coerce.number().int().min(1).max(9999),
+  set_code: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.string().trim().min(1).optional(),
+  ),
+  collector_number: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.string().trim().min(1).optional(),
+  ),
+  quantity: z.coerce.number().int().min(1).max(9999).default(1),
   condition: z.string().trim().default("near mint"),
   finish: z.string().trim().default("nonfoil"),
   language: z.string().trim().default("en"),
@@ -86,8 +92,8 @@ export function parseInventoryCsv(csv: string): CsvParseResult {
     valid.push({
       row,
       cardName: parsed.data.card_name,
-      setCode: parsed.data.set_code.toLowerCase(),
-      collectorNumber: parsed.data.collector_number,
+      setCode: parsed.data.set_code?.toLowerCase() ?? "",
+      collectorNumber: parsed.data.collector_number ?? "",
       quantity: parsed.data.quantity,
       condition,
       finish,

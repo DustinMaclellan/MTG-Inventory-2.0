@@ -25,8 +25,8 @@ import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { clientIpFrom, rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
-import { parseInventoryCsv } from "@/services/csv";
-import { scryfall } from "@/services/scryfall";
+import { parseImportPaste } from "@/services/import-parse";
+import { resolveImportLines, type ImportChoice, type RecognizedImportRow } from "@/services/import-resolve";
 
 export type FormState = { error?: string; notice?: string; devResetUrl?: string };
 
@@ -429,19 +429,8 @@ export async function bulkDeleteInventoryAction(
 
 export type ImportPreviewState = {
   error?: string;
-  recognized?: Array<{
-    row: number;
-    printingId: string;
-    cardName: string;
-    setCode: string;
-    collectorNumber: string;
-    quantity: number;
-    condition: Condition;
-    finish: Finish;
-    language: string;
-    purchasePrice?: number;
-    storageLocation?: string;
-  }>;
+  recognized?: RecognizedImportRow[];
+  choices?: ImportChoice[];
   unresolved?: Array<{ row: number; cardName: string; printing: string }>;
   invalid?: Array<{ row: number; message: string }>;
   duplicates?: number;
@@ -452,57 +441,14 @@ export async function previewImportAction(
   formData: FormData,
 ): Promise<ImportPreviewState> {
   await requireEntitlement();
-  const csv = z.string().max(2_000_000).safeParse(formData.get("csv"));
-  if (!csv.success) return { error: "Paste a CSV smaller than 2 MB." };
-  const parsed = parseInventoryCsv(csv.data);
-  const recognized: NonNullable<ImportPreviewState["recognized"]> = [];
-  const unresolved: NonNullable<ImportPreviewState["unresolved"]> = [];
-  const seen = new Set<string>();
-  let duplicates = 0;
-
-  for (const row of parsed.valid) {
-    let printing = await db.cardPrinting.findFirst({
-      where: {
-        collectorNumber: row.collectorNumber,
-        language: row.language,
-        set: { code: { equals: row.setCode, mode: "insensitive" } },
-      },
-      select: { id: true, name: true, finishes: true },
-    });
-    if (!printing) {
-      try {
-        const remote = await scryfall.getPrinting(
-          row.setCode,
-          row.collectorNumber,
-          row.language,
-        );
-        await scryfall.synchronizePrintings([remote]);
-        printing = await db.cardPrinting.findUnique({
-          where: { scryfallId: remote.id },
-          select: { id: true, name: true, finishes: true },
-        });
-      } catch {
-        // The row remains unresolved and is reported to the user below.
-      }
-    }
-    if (
-      !printing ||
-      printing.name.toLocaleLowerCase() !== row.cardName.toLocaleLowerCase() ||
-      !printing.finishes.includes(row.finish)
-    ) {
-      unresolved.push({
-        row: row.row,
-        cardName: row.cardName,
-        printing: `${row.setCode.toUpperCase()} #${row.collectorNumber}`,
-      });
-      continue;
-    }
-    const key = `${printing.id}:${row.finish}:${row.condition}:${row.language}`;
-    if (seen.has(key)) duplicates += 1;
-    seen.add(key);
-    recognized.push({ ...row, printingId: printing.id });
+  const pasted = z.string().max(2_000_000).safeParse(formData.get("csv"));
+  if (!pasted.success) return { error: "Paste a list smaller than 2 MB." };
+  const parsed = parseImportPaste(pasted.data);
+  if (parsed.valid.length === 0 && parsed.invalid.length === 0) {
+    return { error: "Paste a deck list or CSV first." };
   }
-  return { recognized, unresolved, invalid: parsed.invalid, duplicates };
+  const resolved = await resolveImportLines(parsed.valid);
+  return { ...resolved, invalid: parsed.invalid };
 }
 
 const importRowsSchema = z.array(

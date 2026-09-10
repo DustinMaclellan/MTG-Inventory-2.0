@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { addDeckCardAction } from "@/app/decks/actions";
 import type { DeckFormState } from "@/app/decks/actions";
@@ -31,17 +31,29 @@ export function DeckCardSearch({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  async function search(q: string) {
-    if (q.trim().length < 2) { setResults([]); return; }
-    setSearching(true);
-    try {
-      const res = await fetch(`/api/deck-search?q=${encodeURIComponent(q.trim())}`);
-      setResults(await res.json());
-    } finally {
+  function search(q: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (q.trim().length < 2) {
+      setResults([]);
       setSearching(false);
+      return;
     }
+    setSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/deck-search?q=${encodeURIComponent(q.trim())}`);
+        setResults(await res.json());
+      } finally {
+        setSearching(false);
+      }
+    }, 280);
   }
+
+  useEffect(() => () => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+  }, []);
 
   return (
     <div className="space-y-3">

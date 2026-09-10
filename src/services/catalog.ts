@@ -33,6 +33,7 @@ export async function searchCatalog(rawQuery: string) {
     where,
     include: {
       set: true,
+      card: { select: { typeLine: true } },
       currentPrices: { where: { provider: "SCRYFALL" } },
     },
     orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
@@ -62,6 +63,7 @@ export async function searchCatalog(rawQuery: string) {
     where,
     include: {
       set: true,
+      card: { select: { typeLine: true } },
       currentPrices: { where: { provider: "SCRYFALL" } },
     },
     orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
