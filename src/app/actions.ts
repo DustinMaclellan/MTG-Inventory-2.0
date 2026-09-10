@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { Condition, Currency, Finish } from "@prisma/client";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -15,7 +15,7 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { appUrl } from "@/lib/app-url";
-import { trialEndsAtFrom } from "@/lib/constants";
+import { SESSION_COOKIE, trialEndsAtFrom } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { clientIpFrom, rateLimit } from "@/lib/rate-limit";
@@ -163,6 +163,80 @@ export async function deleteAccountAction(_: FormState, formData: FormData): Pro
 export async function logoutAction() {
   await deleteSession();
   redirect("/login");
+}
+
+export async function updateProfileAction(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = z
+    .object({ displayName: z.string().trim().min(2).max(60) })
+    .safeParse({ displayName: formData.get("displayName") });
+  if (!parsed.success) return { error: "Enter a name between 2 and 60 characters." };
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { displayName: parsed.data.displayName },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  return { notice: "Name saved." };
+}
+
+export async function updatePreferencesAction(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = z
+    .object({ preferredCurrency: z.enum(Currency) })
+    .safeParse({ preferredCurrency: formData.get("preferredCurrency") });
+  if (!parsed.success) return { error: "Choose USD, CAD, or EUR." };
+
+  await db.user.update({
+    where: { id: user.id },
+    data: { preferredCurrency: parsed.data.preferredCurrency },
+  });
+  revalidatePath("/settings");
+  revalidatePath("/dashboard");
+  revalidatePath("/collection");
+  revalidatePath("/storage");
+  return { notice: "Currency saved. Values now use Scryfall prices in that currency." };
+}
+
+export async function changePasswordAction(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const parsed = z
+    .object({
+      currentPassword: z.string().min(1).max(128),
+      password: z.string().min(10).max(128),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "New password must be at least 10 characters." };
+
+  if (!(await enforceAuthRateLimit(user.email))) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
+
+  const fresh = await db.user.findUnique({ where: { id: user.id } });
+  if (!fresh || !(await verifyPassword(fresh.passwordHash, parsed.data.currentPassword))) {
+    return { error: "Current password is incorrect." };
+  }
+  if (parsed.data.currentPassword === parsed.data.password) {
+    return { error: "Pick a new password that is different from the current one." };
+  }
+
+  const currentToken = (await cookies()).get(SESSION_COOKIE)?.value;
+  await db.$transaction([
+    db.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
+    }),
+    db.session.deleteMany({
+      where: {
+        userId: user.id,
+        ...(currentToken ? { tokenHash: { not: hashToken(currentToken) } } : {}),
+      },
+    }),
+  ]);
+
+  revalidatePath("/settings");
+  return { notice: "Password updated. Other signed-in sessions were signed out." };
 }
 
 const inventorySchema = z.object({

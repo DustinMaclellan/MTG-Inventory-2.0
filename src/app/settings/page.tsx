@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import { DeleteAccountForm, ManageBillingButton } from "@/components/billing-forms";
 import { requireUser } from "@/lib/auth";
 import { hasEntitlement, trialDaysRemaining } from "@/lib/entitlements";
+import { PasswordForm, PreferencesForm, ProfileForm } from "./settings-forms";
 
 export const metadata = { title: "Settings" };
 
@@ -18,61 +19,72 @@ function statusLabel(user: Awaited<ReturnType<typeof requireUser>>) {
 
 export default async function SettingsPage() {
   const user = await requireUser();
+
   return (
     <AppShell user={user}>
-      <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
+      <div className="mx-auto max-w-3xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <header className="mb-8">
+          <p className="text-sm text-zinc-500">Account</p>
+          <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">Settings</h1>
+        </header>
 
-        <section className="panel mt-8 p-6">
-          <h2 className="font-medium">Billing</h2>
-          <dl className="mt-5 grid gap-5 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-zinc-600">Status</dt>
-              <dd className="mt-1">{statusLabel(user)}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-600">Trial ends</dt>
-              <dd className="mt-1">{user.trialEndsAt.toLocaleDateString()}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-600">Current period end</dt>
-              <dd className="mt-1">{user.currentPeriodEnd?.toLocaleDateString() ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-zinc-600">Account email</dt>
-              <dd className="mt-1">{user.email}</dd>
-            </div>
-          </dl>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/subscribe" className="button-secondary text-sm">
-              {hasEntitlement(user) ? "Change plan" : "Subscribe"}
-            </Link>
-            <ManageBillingButton hasCustomer={Boolean(user.stripeCustomerId)} />
-          </div>
-        </section>
+        <div className="space-y-6">
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold">Profile</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">
+              Your name appears in the sidebar and on the dashboard greeting.
+            </p>
+            <ProfileForm displayName={user.displayName} email={user.email} />
+          </section>
 
-        <section className="panel mt-8 p-6">
-          <h2 className="font-medium">Pricing preferences</h2>
-          <dl className="mt-5 grid gap-5 text-sm sm:grid-cols-2">
-            <div><dt className="text-zinc-600">Provider</dt><dd className="mt-1">Scryfall</dd></div>
-            <div><dt className="text-zinc-600">Metric</dt><dd className="mt-1">Market</dd></div>
-            <div><dt className="text-zinc-600">Display currency</dt><dd className="mt-1">{user.preferredCurrency}</dd></div>
-            <div><dt className="text-zinc-600">Condition pricing</dt><dd className="mt-1">Unadjusted</dd></div>
-          </dl>
-          <p className="mt-6 border-t border-white/8 pt-5 text-xs leading-5 text-zinc-500">
-            Currency conversion is intentionally unavailable until a real exchange-rate provider is configured. Marketplace prices are preserved in their native currency. Card images are loaded from cards.scryfall.io.
-          </p>
-        </section>
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold">Collection</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">
+              How market values are shown across the app.
+            </p>
+            <PreferencesForm currency={user.preferredCurrency} />
+          </section>
 
-        <section className="panel mt-8 p-6">
-          <h2 className="font-medium text-rose-200">Delete account</h2>
-          <p className="mt-3 text-sm leading-6 text-zinc-500">
-            This permanently removes your profile, sessions, and inventory. Stripe may keep invoices for a canceled subscription.
-          </p>
-          <div className="mt-5">
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold">Billing</h2>
+            <dl className="mt-5 grid gap-5 text-sm sm:grid-cols-2">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wider text-zinc-600">Status</dt>
+                <dd className="mt-1">{statusLabel(user)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wider text-zinc-600">Trial ends</dt>
+                <dd className="mt-1">{user.trialEndsAt.toLocaleDateString()}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wider text-zinc-600">Current period end</dt>
+                <dd className="mt-1">{user.currentPeriodEnd?.toLocaleDateString() ?? "—"}</dd>
+              </div>
+            </dl>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href="/subscribe" className="button-secondary text-sm">
+                {hasEntitlement(user) ? "Change plan" : "Subscribe"}
+              </Link>
+              <ManageBillingButton hasCustomer={Boolean(user.stripeCustomerId)} />
+            </div>
+          </section>
+
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold">Password</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">
+              Changing your password signs out every other device.
+            </p>
+            <PasswordForm />
+          </section>
+
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold text-rose-200">Delete account</h2>
+            <p className="mt-3 mb-5 text-sm leading-6 text-zinc-500">
+              This permanently removes your profile, sessions, decks, and inventory. Stripe may keep invoices for a canceled subscription.
+            </p>
             <DeleteAccountForm />
-          </div>
-        </section>
+          </section>
+        </div>
       </div>
     </AppShell>
   );
