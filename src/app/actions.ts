@@ -227,6 +227,46 @@ export async function deleteInventoryAction(formData: FormData) {
   revalidatePath("/collection");
 }
 
+const bulkUpdateSchema = z.object({
+  ids: z.array(z.string().cuid()).min(1).max(500),
+  storageLocation: z.string().trim().max(120).optional(),
+  condition: z.enum(Condition).optional(),
+});
+
+export type BulkUpdateState = { error?: string; updated?: number };
+
+export async function bulkUpdateInventoryAction(
+  _: BulkUpdateState,
+  formData: FormData,
+): Promise<BulkUpdateState> {
+  const user = await requireEntitlement();
+
+  const raw = {
+    ids: formData.getAll("ids"),
+    storageLocation: formData.get("storageLocation") || undefined,
+    condition: formData.get("condition") || undefined,
+  };
+  const parsed = bulkUpdateSchema.safeParse(raw);
+  if (!parsed.success) return { error: "Invalid selection or update values." };
+
+  const { ids, storageLocation, condition } = parsed.data;
+  if (!storageLocation && !condition) return { error: "Choose at least one field to update." };
+
+  const data: { storageLocation?: string | null; condition?: Condition } = {};
+  if (storageLocation !== undefined) data.storageLocation = storageLocation || null;
+  if (condition !== undefined) data.condition = condition;
+
+  const result = await db.inventoryItem.updateMany({
+    where: { id: { in: ids }, collection: { userId: user.id } },
+    data,
+  });
+
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+  revalidatePath("/storage");
+  return { updated: result.count };
+}
+
 export type ImportPreviewState = {
   error?: string;
   recognized?: Array<{

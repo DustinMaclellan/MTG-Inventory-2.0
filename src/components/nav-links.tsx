@@ -19,7 +19,7 @@ const navigation = [
   { href: "/storage", label: "Storage", icon: Archive },
   { href: "/add", label: "Add Cards", icon: PlusCircle },
   { href: "/imports", label: "Import / Export", icon: FileUp },
-  { href: "/decks", label: "Decks", icon: Boxes, disabled: true },
+  { href: "/decks", label: "Decks", icon: Boxes },
   { href: "/analytics", label: "Analytics", icon: BarChart3, disabled: true },
   { href: "/transactions", label: "Transactions", icon: CreditCard, disabled: true },
 ];
