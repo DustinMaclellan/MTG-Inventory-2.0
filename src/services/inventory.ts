@@ -1,6 +1,6 @@
 import "server-only";
 
-import { PriceProvider, type Prisma } from "@prisma/client";
+import { Condition, Finish, PriceProvider, type Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { calculatePortfolio } from "@/lib/money";
@@ -8,13 +8,24 @@ import { calculatePortfolio } from "@/lib/money";
 export type InventoryFilters = {
   q?: string;
   storage?: string;
+  condition?: string;
+  finish?: string;
 };
 
 function inventoryWhere(userId: string, filters: InventoryFilters = {}): Prisma.InventoryItemWhereInput {
   const query = filters.q?.trim();
   const storage = filters.storage?.trim();
+  const condition = Object.values(Condition).includes(filters.condition as Condition)
+    ? (filters.condition as Condition)
+    : undefined;
+  const finish = Object.values(Finish).includes(filters.finish as Finish)
+    ? (filters.finish as Finish)
+    : undefined;
+
   return {
     collection: { userId },
+    ...(condition ? { condition } : {}),
+    ...(finish ? { finish } : {}),
     ...(storage
       ? {
           storageLocation:

@@ -7,10 +7,14 @@ import { getInventory } from "@/services/inventory";
 
 export const metadata = { title: "Collection" };
 
-function buildCollectionHref(params: { page?: number; q?: string; storage?: string }) {
+function buildCollectionHref(params: {
+  page?: number; q?: string; storage?: string; condition?: string; finish?: string;
+}) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
   if (params.storage) search.set("storage", params.storage);
+  if (params.condition) search.set("condition", params.condition);
+  if (params.finish) search.set("finish", params.finish);
   if (params.page && params.page > 1) search.set("page", String(params.page));
   const query = search.toString();
   return query ? `/collection?${query}` : "/collection";
@@ -19,7 +23,7 @@ function buildCollectionHref(params: { page?: number; q?: string; storage?: stri
 export default async function CollectionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; storage?: string }>;
+  searchParams: Promise<{ page?: string; q?: string; storage?: string; condition?: string; finish?: string }>;
 }) {
   const user = await requireEntitlement();
   const params = await searchParams;
@@ -27,9 +31,14 @@ export default async function CollectionPage({
   const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
   const q = params.q?.trim() ?? "";
   const storage = params.storage?.trim() ?? "";
-  const { items, total, pageSize, storageLocations } = await getInventory(page, 25, { q, storage });
+  const condition = params.condition?.trim() ?? "";
+  const finish = params.finish?.trim() ?? "";
+
+  const { items, total, pageSize, storageLocations } = await getInventory(page, 25, {
+    q, storage, condition, finish,
+  });
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const filtersActive = Boolean(q || storage);
+  const filtersActive = Boolean(q || storage || condition || finish);
 
   return (
     <AppShell user={user}>
@@ -47,13 +56,10 @@ export default async function CollectionPage({
           </Link>
         </header>
 
-        {/* Filters */}
+        {/* Search / storage filters */}
         <form className="panel mb-5 grid gap-3 p-4 sm:grid-cols-[1fr_220px_auto]">
           <label className="relative block">
-            <Search
-              size={15}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600"
-            />
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input
               name="q"
               defaultValue={q}
@@ -73,18 +79,16 @@ export default async function CollectionPage({
             ))}
           </select>
           <div className="flex gap-2">
-            <button type="submit" className="button-primary flex-1 text-sm sm:flex-none">
-              Search
-            </button>
+            <button type="submit" className="button-primary flex-1 text-sm sm:flex-none">Search</button>
             {filtersActive && (
               <Link href="/collection" className="panel px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
-                Clear
+                Clear all
               </Link>
             )}
           </div>
         </form>
 
-        {/* Serialize Prisma Decimal fields before passing to the client component */}
+        {/* Table with inline column filters + sort */}
         <CollectionTable
           items={items.map((item) => ({
             ...item,
@@ -100,19 +104,21 @@ export default async function CollectionPage({
           currency={user.preferredCurrency}
           filtersActive={filtersActive}
           currentQ={q}
+          currentCondition={condition}
+          currentFinish={finish}
         />
 
         {/* Pagination */}
         {pages > 1 && (
           <nav className="mt-5 flex justify-end gap-2 text-sm">
             {page > 1 && (
-              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page - 1, q, storage })}>
+              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page - 1, q, storage, condition, finish })}>
                 Previous
               </Link>
             )}
             <span className="px-3 py-2 text-zinc-500">Page {page} of {pages}</span>
             {page < pages && (
-              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page + 1, q, storage })}>
+              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page + 1, q, storage, condition, finish })}>
                 Next
               </Link>
             )}

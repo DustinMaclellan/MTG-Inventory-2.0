@@ -5,7 +5,8 @@ import { CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { deleteDeckAction, removeDeckCardAction } from "@/app/decks/actions";
+import { removeDeckCardAction } from "@/app/decks/actions";
+import { DeleteDeckButton } from "./delete-deck-button";
 import { DeckCardSearch } from "./deck-card-search";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -226,17 +227,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-600">
                 Danger zone
               </p>
-              <form action={deleteDeckAction}>
-                <input type="hidden" name="deckId" value={deck.id} />
-                <button
-                  className="w-full rounded-xl border border-rose-500/20 bg-rose-500/6 px-4 py-2.5 text-sm font-medium text-rose-400 hover:bg-rose-500/10 transition-colors"
-                  onClick={(e) => {
-                    if (!confirm(`Delete "${deck.name}"? This cannot be undone.`)) e.preventDefault();
-                  }}
-                >
-                  Delete deck
-                </button>
-              </form>
+              <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
             </div>
           </aside>
         </div>

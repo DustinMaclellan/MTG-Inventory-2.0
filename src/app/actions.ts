@@ -233,7 +233,7 @@ const bulkUpdateSchema = z.object({
   condition: z.enum(Condition).optional(),
 });
 
-export type BulkUpdateState = { error?: string; updated?: number };
+export type BulkUpdateState = { error?: string; updated?: number; deleted?: number };
 
 export async function bulkUpdateInventoryAction(
   _: BulkUpdateState,
@@ -265,6 +265,21 @@ export async function bulkUpdateInventoryAction(
   revalidatePath("/dashboard");
   revalidatePath("/storage");
   return { updated: result.count };
+}
+
+export async function bulkDeleteInventoryAction(
+  _: BulkUpdateState,
+  formData: FormData,
+): Promise<BulkUpdateState> {
+  const user = await requireEntitlement();
+  const ids = z.array(z.string().cuid()).min(1).max(500).parse(formData.getAll("ids"));
+  const result = await db.inventoryItem.deleteMany({
+    where: { id: { in: ids }, collection: { userId: user.id } },
+  });
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+  revalidatePath("/storage");
+  return { deleted: result.count };
 }
 
 export type ImportPreviewState = {
