@@ -70,6 +70,97 @@ async function createMissing<T>(
   }
 }
 
+/** Insert any missing paper printings from a Scryfall result list. */
+export async function ingestPaperPrintings(cards: ScryfallCard[]) {
+  const paper = cards.filter((card) => isPaperPrinting(card) && card.oracle_id);
+  if (paper.length === 0) return 0;
+
+  const sets = new Map<string, { scryfallId: string; code: string; name: string; setType: string | null }>();
+  const concepts = new Map<
+    string,
+    {
+      oracleId: string;
+      name: string;
+      normalizedName: string;
+      typeLine: string | null;
+      oracleText: string | null;
+      manaCost: string | null;
+      colorIdentity: string[];
+    }
+  >();
+  for (const card of paper) {
+    if (!card.oracle_id) continue;
+    sets.set(card.set_id, {
+      scryfallId: card.set_id,
+      code: card.set,
+      name: card.set_name,
+      setType: card.set_type ?? null,
+    });
+    concepts.set(card.oracle_id, {
+      oracleId: card.oracle_id,
+      name: card.name,
+      normalizedName: card.name.toLocaleLowerCase(),
+      typeLine: card.type_line ?? null,
+      oracleText: card.oracle_text ?? null,
+      manaCost: card.mana_cost ?? null,
+      colorIdentity: card.color_identity ?? [],
+    });
+  }
+
+  await db.mtgSet.createMany({ data: [...sets.values()], skipDuplicates: true });
+  await db.card.createMany({ data: [...concepts.values()], skipDuplicates: true });
+
+  const setIdByScryfall = new Map(
+    (
+      await db.mtgSet.findMany({
+        where: { scryfallId: { in: [...sets.keys()] } },
+        select: { id: true, scryfallId: true },
+      })
+    ).map((row) => [row.scryfallId, row.id]),
+  );
+  const cardIdByOracle = new Map(
+    (
+      await db.card.findMany({
+        where: { oracleId: { in: [...concepts.keys()] } },
+        select: { id: true, oracleId: true },
+      })
+    ).map((row) => [row.oracleId, row.id]),
+  );
+
+  const printingRows = paper.flatMap((card) => {
+    const cardId = card.oracle_id ? cardIdByOracle.get(card.oracle_id) : undefined;
+    const setId = setIdByScryfall.get(card.set_id);
+    if (!cardId || !setId) return [];
+    return [
+      {
+        scryfallId: card.id,
+        cardId,
+        setId,
+        collectorNumber: card.collector_number,
+        name: card.name,
+        rarity: card.rarity,
+        artist: card.artist ?? null,
+        language: card.lang || "en",
+        releasedAt: card.released_at ? new Date(card.released_at) : null,
+        imageSmallUrl: scryfallImage(card, "small"),
+        imageNormalUrl: scryfallImage(card, "normal"),
+        finishes: scryfallFinishes(card.finishes),
+        promo: card.promo,
+        digital: false,
+        tcgplayerId: card.tcgplayer_id ?? null,
+        cardmarketId: card.cardmarket_id ?? null,
+        rawPrices: card.prices ?? undefined,
+        pricesUpdatedAt: new Date(),
+      },
+    ];
+  });
+
+  await createMissing(printingRows, PRINTING_BATCH, (chunk) =>
+    db.cardPrinting.createMany({ data: chunk, skipDuplicates: true }),
+  );
+  return printingRows.length;
+}
+
 export async function syncCatalogFromBulk() {
   const file = await bulkFile();
   const sets = new Map<string, { scryfallId: string; code: string; name: string; setType: string | null }>();

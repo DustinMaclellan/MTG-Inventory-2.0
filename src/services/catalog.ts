@@ -3,11 +3,12 @@ import "server-only";
 import { Currency, Finish, type Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { toDisplayMarket } from "@/lib/pricing";
+import { ingestPaperPrintings } from "@/services/catalog-sync";
 import { scryfall } from "@/services/scryfall";
 
 const EXACT_TAKE = 200;
 const FUZZY_TAKE = 80;
-const COLD_CATALOG = 1_000;
+const BULK_COMPLETE = 50_000;
 
 const printingInclude = {
   set: true,
@@ -76,45 +77,67 @@ export function pricesFromPrinting(
   ];
 }
 
-export async function searchCatalog(rawQuery: string) {
-  const query = rawQuery.trim();
-  if (query.length < 2) return [];
+async function catalogIsComplete() {
+  try {
+    const rows = await db.$queryRaw<Array<{ printingCount: number }>>`
+      SELECT "printingCount" FROM "CatalogSync" WHERE id = 'scryfall' LIMIT 1
+    `;
+    return (rows[0]?.printingCount ?? 0) >= BULK_COMPLETE;
+  } catch {
+    return false;
+  }
+}
 
+function isSetOrNumberQuery(query: string) {
+  return (
+    /\b(?:set|e|number|cn):/i.test(query) ||
+    /^[a-z0-9]{2,5}$/i.test(query) ||
+    /^\d+[a-z]?$/i.test(query)
+  );
+}
+
+async function backfillFromScryfall(query: string) {
+  const cleaned = query.replaceAll('"', "").trim();
+  const exactName = !isSetOrNumberQuery(cleaned);
+  const remote = await scryfall.searchPrintings(
+    exactName ? `!"${cleaned}" game:paper` : `${cleaned} game:paper`,
+    exactName ? {} : { maxPages: 1 },
+  );
+  await ingestPaperPrintings(remote);
+}
+
+async function localExact(query: string) {
   const cards = await db.card.findMany({
     where: { normalizedName: query.toLocaleLowerCase() },
     select: { id: true },
     take: 8,
   });
-  if (cards.length > 0) {
-    return db.cardPrinting.findMany({
-      where: { digital: false, cardId: { in: cards.map((card) => card.id) } },
-      include: printingInclude,
-      orderBy: { releasedAt: "desc" },
-      take: EXACT_TAKE,
-    });
-  }
-
-  const where = printingWhere(query);
-  const local = await db.cardPrinting.findMany({
-    where,
+  if (cards.length === 0) return [];
+  return db.cardPrinting.findMany({
+    where: { digital: false, cardId: { in: cards.map((card) => card.id) } },
     include: printingInclude,
-    orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
-    take: FUZZY_TAKE,
+    orderBy: { releasedAt: "desc" },
+    take: EXACT_TAKE,
   });
-  if (local.length > 0) return local;
+}
 
-  const catalogSize = await db.cardPrinting.count();
-  if (catalogSize >= COLD_CATALOG) return local;
+export async function searchCatalog(rawQuery: string) {
+  const query = rawQuery.trim();
+  if (query.length < 2) return [];
 
-  try {
-    const remote = await scryfall.searchPrintings(`${query} game:paper`, { maxPages: 1 });
-    await scryfall.synchronizePrintings(remote.slice(0, FUZZY_TAKE));
-  } catch {
-    return local;
+  if (!(await catalogIsComplete())) {
+    try {
+      await backfillFromScryfall(query);
+    } catch {
+      // Serve whatever is already in the catalog.
+    }
   }
+
+  const exact = await localExact(query);
+  if (exact.length > 0) return exact;
 
   return db.cardPrinting.findMany({
-    where,
+    where: printingWhere(query),
     include: printingInclude,
     orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
     take: FUZZY_TAKE,

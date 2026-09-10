@@ -8,6 +8,7 @@ import { pricesFromPrinting, searchCatalog } from "@/services/catalog";
 import { AddPrintingCard } from "./add-printing-card";
 
 export const metadata = { title: "Add cards" };
+export const maxDuration = 60;
 
 export default async function AddCardsPage({
   searchParams,

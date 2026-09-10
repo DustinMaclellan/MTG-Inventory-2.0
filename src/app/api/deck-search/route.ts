@@ -6,6 +6,7 @@ import { hasEntitlement } from "@/lib/entitlements";
 import { searchCatalog } from "@/services/catalog";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
