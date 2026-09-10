@@ -10,12 +10,14 @@ const protectedPaths = [
   "/imports",
   "/settings",
   "/subscribe",
+  "/decks",
 ];
 
 function isProtected(pathname: string) {
   return (
     protectedPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`)) ||
-    pathname.startsWith("/api/export")
+    pathname.startsWith("/api/export") ||
+    pathname.startsWith("/api/deck-search")
   );
 }
 
@@ -48,6 +50,9 @@ export const config = {
     "/settings/:path*",
     "/subscribe",
     "/subscribe/:path*",
+    "/decks",
+    "/decks/:path*",
     "/api/export",
+    "/api/deck-search",
   ],
 };

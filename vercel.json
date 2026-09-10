@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/catalog-sync",
+      "path": "/api/cron/price-sync",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/catalog-sync",
+      "schedule": "30 6 * * *"
     }
   ]
 }

@@ -56,15 +56,24 @@ function decimal(value: string | null | undefined) {
   return value ? Number(value) : null;
 }
 
+const SCRYFALL_HEADERS = {
+  "User-Agent": "MysticLedger/1.0 (collection manager)",
+  Accept: "application/json",
+};
+
 async function scryfallFetch<T>(url: string): Promise<T> {
   const response = await fetch(url, {
-    headers: { "User-Agent": "MysticLedger/1.0 (collection manager)" },
+    headers: SCRYFALL_HEADERS,
     next: { revalidate: 300 },
   });
   if (!response.ok) {
     throw new Error(`Scryfall request failed (${response.status})`);
   }
   return response.json() as Promise<T>;
+}
+
+function pause(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class ScryfallProvider
@@ -81,6 +90,28 @@ export class ScryfallProvider
       `${SCRYFALL_API}/cards/search?q=${encodeURIComponent(query)}&unique=prints&order=released`,
     );
     return result.data.filter((card) => card.oracle_id && !card.digital);
+  }
+
+  async getPrintingsByIds(ids: string[]) {
+    const unique = [...new Set(ids.filter(Boolean))];
+    const cards: ScryfallCard[] = [];
+
+    for (let index = 0; index < unique.length; index += 75) {
+      const chunk = unique.slice(index, index + 75);
+      const response = await fetch(`${SCRYFALL_API}/cards/collection`, {
+        method: "POST",
+        headers: { ...SCRYFALL_HEADERS, "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiers: chunk.map((id) => ({ id })) }),
+      });
+      if (!response.ok) {
+        throw new Error(`Scryfall collection request failed (${response.status})`);
+      }
+      const result = (await response.json()) as { data: ScryfallCard[] };
+      cards.push(...result.data.filter((card) => card.oracle_id && !card.digital));
+      if (index + 75 < unique.length) await pause(100);
+    }
+
+    return cards;
   }
 
   async synchronizePrintings(cards: ScryfallCard[]) {

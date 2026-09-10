@@ -1,8 +1,8 @@
 # Mystic Ledger
 
-Private Magic: The Gathering collection manager. Track exact printings, market value, storage locations, and CSV import/export. New accounts get a 14-day free trial, then one paid plan.
+Private Magic: The Gathering collection manager. Track exact Scryfall printings, market value, storage locations, and decks. New accounts get a 14-day free trial, then one paid plan.
 
-**Stack:** Next.js · PostgreSQL · Prisma · Scryfall prices · Stripe billing
+**Stack:** Next.js 16 · PostgreSQL · Prisma · Scryfall prices · Stripe billing · English / French
 
 ---
 
@@ -11,8 +11,8 @@ Private Magic: The Gathering collection manager. Track exact printings, market v
 You need **Node.js 22+**. No separate Postgres install is required for local development.
 
 ```bash
-git clone <your-repo-url> mtg-collection-manager
-cd mtg-collection-manager
+git clone https://github.com/DustinMaclellan/MTG-Inventory-2.0.git
+cd MTG-Inventory-2.0
 npm install
 npm run dev
 ```
@@ -33,17 +33,35 @@ Stripe and Resend are optional for local inventory work. Checkout and password-r
 
 ## What you can do
 
-- Public landing, pricing, terms, and privacy pages
+- Public landing, pricing, terms, and privacy pages (English or French)
 - Register / sign in (private inventory per account) with a 14-day trial
 - Search exact Scryfall printings and add lots (qty, finish, condition, paid price, storage)
-- Browse and search your collection; filter by storage
-- See storage grouped by location
-- Dashboard with total market value and cost basis
-- CSV import (with review) and export
+- Browse the collection with search, filters, sort, and bulk edit / delete
+- Track storage by binder, box, or shelf
+- Dashboard with market value, cost basis, unrealized gain, recently added, and largest position
+- Deck builder with owned vs missing per printing
+- CSV import (with review) and export for the full collection, one binder, or one deck
+- Settings: display name, English/French, USD / CAD / EUR, password, account deletion
 - Subscribe through Stripe Checkout; manage billing in the Stripe Customer Portal
-- Reset a forgotten password; delete your account from Settings
+- Reset a forgotten password
 
-Prices come from Scryfall and are stored locally. The UI never calls Scryfall directly.
+Analytics and Transactions are listed in the app as coming later. They are not live.
+
+Prices come from Scryfall and are stored locally. The browser never calls Scryfall.
+
+---
+
+## Prices
+
+Scryfall publishes **USD** and **EUR**. Those values are saved when a printing is first fetched, and refreshed daily for every printing someone owns.
+
+- **Daily job** (`/api/cron/price-sync` at 06:00 UTC) re-fetches owned printings through Scryfall’s collection API
+- **Catalog job** (`/api/cron/catalog-sync` at 06:30 UTC) pulls the newest paper printings so search stays warm
+- Search and CSV import also update prices for printings they load
+- Opening the dashboard does **not** call Scryfall; it reads stored prices
+- **CAD** uses Scryfall USD converted at the ECB USD/CAD rate (Frankfurter). If that rate is unavailable, CAD falls back to the USD amount
+
+Scryfall itself updates TCGPlayer / Cardmarket prices about once a day, so collection value tracks Scryfall, not a live exchange.
 
 ---
 
@@ -54,11 +72,12 @@ Prices come from Scryfall and are stored locally. The UI never calls Scryfall di
 | `npm run dev` | Local Postgres + app (recommended) |
 | `npm run dev:web` | App only (use your own `DATABASE_URL`) |
 | `npm run db:studio` | Open Prisma Studio |
-| `npm run catalog:sync` | Warm more catalog/price data from Scryfall |
+| `npm run db:deploy` | Apply migrations (production) |
+| `npm run catalog:sync` | Refresh owned prices, then warm newest catalog pages |
 | `npm run typecheck` | TypeScript check |
 | `npm run lint` | ESLint |
 | `npm test` | Unit tests |
-| `npm run build` | Production build |
+| `npm run build` | Production build (`prisma generate` + Next.js) |
 
 ---
 
@@ -79,35 +98,40 @@ npm run dev:web
 
 ## Environment variables
 
-See `.env.example`. Common values:
+See `.env.example`. Never commit `.env`.
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Postgres connection string |
-| `APP_URL` | Public app URL (e.g. `http://localhost:3000`) |
-| `SESSION_COOKIE_SECURE` | `true` in production HTTPS |
-| `CRON_SECRET` | Required secret for `/api/cron/catalog-sync` |
-| `STRIPE_SECRET_KEY` | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
-| `STRIPE_PRICE_MONTHLY` | Stripe Price id for $8/month |
-| `STRIPE_PRICE_YEARLY` | Stripe Price id for $72/year |
-| `RESEND_API_KEY` | Sends password-reset email |
-| `EMAIL_FROM` | From address for Resend |
+`npm run dev` with the embedded Postgres does not need a `.env` file. Create one for production, or when using `dev:web` against your own database.
 
-Copy `.env.example` → `.env` only when you are not using the embedded Postgres from `npm run dev`. Never commit `.env`.
+| Variable | Required in production | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | Yes | Postgres connection string |
+| `APP_URL` | Yes | Public origin, no trailing slash (Stripe redirects and password-reset links) |
+| `SESSION_COOKIE_SECURE` | Yes (`true`) | Secure session cookie. Also implied when `NODE_ENV=production` |
+| `CRON_SECRET` | Yes | Shared secret for `/api/cron/*`. Vercel sends `Authorization: Bearer <CRON_SECRET>` |
+| `STRIPE_SECRET_KEY` | For billing | Stripe secret key (start with test mode) |
+| `STRIPE_WEBHOOK_SECRET` | For billing | Stripe webhook signing secret |
+| `STRIPE_PRICE_MONTHLY` | For billing | Stripe Price id for $8/month |
+| `STRIPE_PRICE_YEARLY` | For billing | Stripe Price id for $72/year |
+| `RESEND_API_KEY` | For password reset email | Leave empty locally to print reset links in the console |
+| `EMAIL_FROM` | With Resend | Verified Resend from-address |
+| `SCRYFALL_SYNC_PAGES` | No | Catalog cron page cap (default `10`) |
+
+On Vercel, `VERCEL_PROJECT_PRODUCTION_URL` is used if `APP_URL` is missing. Per-deployment `VERCEL_URL` is intentionally not used.
 
 ---
 
 ## Deploy
 
-1. Host the Next.js app (Vercel, Railway, etc.)
+1. Host the Next.js app (Vercel is the path `vercel.json` is written for)
 2. Attach managed Postgres (Neon, Supabase, Railway, …)
-3. Set `DATABASE_URL`, `APP_URL`, and `SESSION_COOKIE_SECURE=true`
-4. Create a Stripe product with monthly and yearly prices; set the Stripe env vars
-5. Point a Stripe webhook at `/api/stripe/webhook`
-6. Set `RESEND_API_KEY` (and a verified `EMAIL_FROM`) for password reset
-7. Run `npm run db:deploy` on release
-8. Schedule `/api/cron/catalog-sync` daily (Vercel Cron is configured in `vercel.json`)
+3. Set `DATABASE_URL`, `APP_URL`, `SESSION_COOKIE_SECURE=true`, and `CRON_SECRET` (`openssl rand -hex 32`)
+4. Run `npm run db:deploy` on release (or add `prisma migrate deploy` to the host’s release command)
+5. Create a Stripe product with monthly and yearly prices; set the Stripe env vars
+6. Point a Stripe webhook at `https://<your-domain>/api/stripe/webhook` for `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, and `invoice.payment_failed`
+7. Set `RESEND_API_KEY` and a verified `EMAIL_FROM` so password reset email actually sends
+8. Confirm both Vercel crons are enabled: `/api/cron/price-sync` (06:00 UTC) and `/api/cron/catalog-sync` (06:30 UTC)
+
+Hobby Vercel cron jobs are capped at 60 seconds. Owned-price refresh is sized for that. The catalog job may need a higher `maxDuration` (Pro) or a lower `SCRYFALL_SYNC_PAGES` if it times out.
 
 Recommended list price: **$8/month** or **$72/year**. Change the amounts in the Stripe Dashboard; the marketing copy lives in `src/lib/constants.ts`.
 

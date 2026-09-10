@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { hasEntitlement } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json([], { status: 401 });
+  if (!hasEntitlement(user)) return NextResponse.json([], { status: 402 });
 
   const q = z.string().min(2).max(100).safeParse(
     new URL(request.url).searchParams.get("q") ?? "",

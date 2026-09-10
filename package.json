@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx scripts/dev.ts",
     "dev:web": "next dev",
-    "build": "next build",
+    "postinstall": "prisma generate",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -48,5 +49,8 @@
     "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

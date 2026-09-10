@@ -1,9 +1,10 @@
 import "server-only";
 
-import { Condition, Finish, PriceProvider, type Prisma } from "@prisma/client";
+import { Condition, Finish, Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { calculatePortfolio } from "@/lib/money";
+import { displayFx, scryfallPriceWhere, toDisplayMarket } from "@/lib/pricing";
 
 export type InventoryFilters = {
   q?: string;
@@ -48,9 +49,27 @@ function inventoryWhere(userId: string, filters: InventoryFilters = {}): Prisma.
   };
 }
 
+function withDisplayFx<T extends { cardPrinting: { currentPrices: Array<{ market: Prisma.Decimal | null }> } }>(
+  items: T[],
+  fx: number,
+): T[] {
+  if (fx === 1) return items;
+  return items.map((item) => ({
+    ...item,
+    cardPrinting: {
+      ...item.cardPrinting,
+      currentPrices: item.cardPrinting.currentPrices.map((price) => ({
+        ...price,
+        market: price.market ? price.market.times(fx) : null,
+      })),
+    },
+  }));
+}
+
 export async function getInventory(page = 1, pageSize = 25, filters: InventoryFilters = {}) {
   const user = await requireEntitlement();
   const where = inventoryWhere(user.id, filters);
+  const fx = await displayFx(user.preferredCurrency);
   const [items, total, storageLocations] = await db.$transaction([
     db.inventoryItem.findMany({
       where,
@@ -59,7 +78,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
           include: {
             set: true,
             currentPrices: {
-              where: { provider: PriceProvider.SCRYFALL, currency: user.preferredCurrency },
+              where: scryfallPriceWhere(user.preferredCurrency),
             },
           },
         },
@@ -80,7 +99,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
     }),
   ]);
   return {
-    items,
+    items: withDisplayFx(items, fx),
     total,
     page,
     pageSize,
@@ -92,6 +111,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
 
 export async function getStorageOverview() {
   const user = await requireEntitlement();
+  const fx = await displayFx(user.preferredCurrency);
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {
@@ -99,7 +119,7 @@ export async function getStorageOverview() {
         include: {
           set: true,
           currentPrices: {
-            where: { provider: PriceProvider.SCRYFALL, currency: user.preferredCurrency },
+            where: scryfallPriceWhere(user.preferredCurrency),
           },
         },
       },
@@ -129,9 +149,10 @@ export async function getStorageOverview() {
 
   for (const item of items) {
     const key = item.storageLocation?.trim() || "Unassigned";
-    const market =
-      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market?.toNumber() ??
-      null;
+    const market = toDisplayMarket(
+      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
+      fx,
+    );
     const value = market === null ? null : market * item.quantity;
     const group = groups.get(key) ?? {
       name: key,
@@ -190,6 +211,7 @@ export async function getStorageOverview() {
 
 export async function getDashboard() {
   const user = await requireEntitlement();
+  const fx = await displayFx(user.preferredCurrency);
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {
@@ -197,7 +219,7 @@ export async function getDashboard() {
         include: {
           set: true,
           currentPrices: {
-            where: { provider: PriceProvider.SCRYFALL, currency: user.preferredCurrency },
+            where: scryfallPriceWhere(user.preferredCurrency),
           },
         },
       },
@@ -208,17 +230,19 @@ export async function getDashboard() {
   const lines = items.map((item) => ({
     quantity: item.quantity,
     purchasePrice: item.purchasePrice?.toNumber() ?? null,
-    marketPrice:
-      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market?.toNumber() ??
-      null,
+    marketPrice: toDisplayMarket(
+      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
+      fx,
+    ),
   }));
   const totals = calculatePortfolio(lines);
   const uniqueCards = new Set(items.map((item) => item.cardPrinting.cardId)).size;
   const mostValuable = [...items]
     .map((item) => {
-      const price =
-        item.cardPrinting.currentPrices.find((entry) => entry.finish === item.finish)?.market?.toNumber() ??
-        null;
+      const price = toDisplayMarket(
+        item.cardPrinting.currentPrices.find((entry) => entry.finish === item.finish)?.market,
+        fx,
+      );
       return { item, price, value: price === null ? null : price * item.quantity };
     })
     .filter((entry) => entry.value !== null)

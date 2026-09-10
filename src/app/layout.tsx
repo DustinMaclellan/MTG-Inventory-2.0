@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleProvider } from "@/i18n/provider";
 import { getRequestMessages } from "@/i18n/request";
+import { appMetadataBase } from "@/lib/app-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,13 +16,28 @@ const geistMono = Geist_Mono({
 });
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { m } = await getRequestMessages();
+  const { locale, m } = await getRequestMessages();
+  const description = m.meta.description;
   return {
+    metadataBase: appMetadataBase(),
     title: {
       default: "Mystic Ledger",
       template: "%s · Mystic Ledger",
     },
-    description: m.meta.description,
+    description,
+    applicationName: "Mystic Ledger",
+    openGraph: {
+      title: "Mystic Ledger",
+      description,
+      type: "website",
+      locale: locale === "fr" ? "fr_CA" : "en_US",
+      siteName: "Mystic Ledger",
+    },
+    twitter: {
+      card: "summary",
+      title: "Mystic Ledger",
+      description,
+    },
   };
 }
 

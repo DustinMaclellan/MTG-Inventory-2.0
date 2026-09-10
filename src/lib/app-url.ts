@@ -18,3 +18,11 @@ export function appUrl() {
 
   return "http://localhost:3000";
 }
+
+export function appMetadataBase() {
+  const configured = process.env.APP_URL?.replace(/\/$/, "");
+  if (configured) return new URL(configured);
+  const productionDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  if (productionDomain) return new URL(`https://${productionDomain.replace(/\/$/, "")}`);
+  return undefined;
+}

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hasEntitlement } from "@/lib/entitlements";
+import { displayFx, scryfallPriceWhere, toDisplayMarket } from "@/lib/pricing";
 
 function cell(value: unknown) {
   const text = value == null ? "" : String(value);
@@ -52,6 +53,7 @@ export async function GET(request: Request) {
 
 async function exportInventory(userId: string, currency: Currency, storage: string) {
   if (storage.length > 120) return new Response("Invalid storage location.", { status: 400 });
+  const fx = await displayFx(currency);
 
   const items = await db.inventoryItem.findMany({
     where: {
@@ -70,7 +72,7 @@ async function exportInventory(userId: string, currency: Currency, storage: stri
         include: {
           set: true,
           currentPrices: {
-            where: { provider: "SCRYFALL", currency },
+            where: scryfallPriceWhere(currency),
           },
         },
       },
@@ -84,12 +86,15 @@ async function exportInventory(userId: string, currency: Currency, storage: stri
     "current_value", "storage_location", "purchase_date",
   ];
   const rows = items.map((item) => {
-    const market = item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market?.toString();
+    const market = toDisplayMarket(
+      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
+      fx,
+    );
     return [
       item.cardPrinting.name, item.cardPrinting.set.name, item.cardPrinting.set.code,
       item.cardPrinting.collectorNumber, item.quantity, item.condition, item.finish,
       item.language, item.purchasePrice?.toString(), market,
-      market ? Number(market) * item.quantity : undefined, item.storageLocation,
+      market == null ? undefined : market * item.quantity, item.storageLocation,
       item.purchaseDate?.toISOString().slice(0, 10),
     ];
   });
@@ -104,6 +109,7 @@ async function exportDeck(userId: string, currency: Currency, deckId: string) {
   if (!z.string().cuid().safeParse(deckId).success) {
     return new Response("Invalid deck.", { status: 400 });
   }
+  const fx = await displayFx(currency);
 
   const deck = await db.deck.findFirst({
     where: { id: deckId, userId },
@@ -116,7 +122,7 @@ async function exportDeck(userId: string, currency: Currency, deckId: string) {
               collectorNumber: true,
               set: { select: { code: true, name: true } },
               currentPrices: {
-                where: { provider: "SCRYFALL", currency },
+                where: scryfallPriceWhere(currency),
                 select: { finish: true, market: true },
               },
             },
@@ -135,7 +141,10 @@ async function exportDeck(userId: string, currency: Currency, deckId: string) {
   ];
   const rows = deck.cards.map((entry) => {
     const prices = entry.printing?.currentPrices ?? [];
-    const market = (prices.find((p) => p.finish === Finish.NONFOIL) ?? prices[0])?.market?.toString();
+    const market = toDisplayMarket(
+      (prices.find((p) => p.finish === Finish.NONFOIL) ?? prices[0])?.market,
+      fx,
+    );
     return [
       entry.card.name,
       entry.printing?.set.name,
