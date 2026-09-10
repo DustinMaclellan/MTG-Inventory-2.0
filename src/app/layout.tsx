@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: "Mystic Ledger",
     template: "%s · Mystic Ledger",
   },
-  description: "MTG collection, inventory, and portfolio intelligence.",
+  description: "Private MTG collection manager with exact printings, market value, and a 14-day free trial.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

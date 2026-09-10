@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { hasEntitlement } from "@/lib/entitlements";
 
 function cell(value: unknown) {
   const text = value == null ? "" : String(value);
@@ -9,6 +10,7 @@ function cell(value: unknown) {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+  if (!hasEntitlement(user)) return new Response("Payment required", { status: 402 });
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {

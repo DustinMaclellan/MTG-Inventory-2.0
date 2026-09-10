@@ -1,26 +1,4 @@
-import { scryfall, type ScryfallCard } from "../src/services/scryfall";
+import { syncCatalog } from "../src/services/catalog-sync";
 
-type Page = {
-  data: ScryfallCard[];
-  has_more: boolean;
-  next_page?: string;
-};
-
-const maxPages = Number(process.env.SCRYFALL_SYNC_PAGES ?? "10");
-let url =
-  "https://api.scryfall.com/cards/search?q=game%3Apaper&unique=prints&order=released&dir=desc";
-let page = 0;
-let synchronized = 0;
-
-while (url && page < maxPages) {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "MysticLedger/1.0 (catalog sync)" },
-  });
-  if (!response.ok) throw new Error(`Scryfall sync failed (${response.status})`);
-  const result = (await response.json()) as Page;
-  synchronized += await scryfall.synchronizePrintings(result.data);
-  page += 1;
-  console.log(`Synchronized ${synchronized} printings across ${page} page(s)`);
-  url = result.has_more && result.next_page ? result.next_page : "";
-  await new Promise((resolve) => setTimeout(resolve, 100));
-}
+const result = await syncCatalog();
+console.log(`Synchronized ${result.synchronized} printings across ${result.pages} page(s)`);

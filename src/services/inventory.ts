@@ -1,7 +1,7 @@
 import "server-only";
 
 import { PriceProvider, type Prisma } from "@prisma/client";
-import { requireUser } from "@/lib/auth";
+import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { calculatePortfolio } from "@/lib/money";
 
@@ -38,7 +38,7 @@ function inventoryWhere(userId: string, filters: InventoryFilters = {}): Prisma.
 }
 
 export async function getInventory(page = 1, pageSize = 25, filters: InventoryFilters = {}) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const where = inventoryWhere(user.id, filters);
   const [items, total, storageLocations] = await db.$transaction([
     db.inventoryItem.findMany({
@@ -80,7 +80,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
 }
 
 export async function getStorageOverview() {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {
@@ -160,7 +160,7 @@ export async function getStorageOverview() {
 }
 
 export async function getDashboard() {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const items = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {

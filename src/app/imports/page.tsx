@@ -1,14 +1,14 @@
 import { Download } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { ImportForm } from "@/components/import-form";
-import { requireUser } from "@/lib/auth";
+import { requireEntitlement } from "@/lib/auth";
 
 export const metadata = { title: "Import & export" };
 
 export default async function ImportsPage() {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   return (
-    <AppShell userName={user.displayName}>
+    <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-5">
           <div>

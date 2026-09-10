@@ -11,7 +11,7 @@ export default async function StoragePage() {
   const currency = user.preferredCurrency;
 
   return (
-    <AppShell userName={user.displayName}>
+    <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8 max-w-2xl">
           <p className="text-sm text-zinc-500">Where your physical cards live</p>

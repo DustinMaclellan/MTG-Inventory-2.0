@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, Search } from "lucide-react";
 import { addInventoryAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
-import { requireUser } from "@/lib/auth";
+import { requireEntitlement } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { searchCatalog } from "@/services/catalog";
 
@@ -14,14 +14,14 @@ export default async function AddCardsPage({
 }: {
   searchParams: Promise<{ q?: string; added?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
   const justAdded = params.added === "1";
   const results = query.length >= 2 ? await searchCatalog(query) : [];
 
   return (
-    <AppShell userName={user.displayName}>
+    <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8">
           <p className="text-sm text-emerald-400">Exact printing search</p>

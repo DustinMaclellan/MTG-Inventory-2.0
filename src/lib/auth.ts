@@ -4,9 +4,10 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import argon2 from "argon2";
+import { SESSION_COOKIE } from "@/lib/constants";
 import { db } from "@/lib/db";
+import { hasEntitlement } from "@/lib/entitlements";
 
-const SESSION_COOKIE = "mystic_session";
 const SESSION_DAYS = 30;
 
 function hashToken(token: string) {
@@ -75,5 +76,11 @@ export async function getCurrentUser() {
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  return user;
+}
+
+export async function requireEntitlement() {
+  const user = await requireUser();
+  if (!hasEntitlement(user)) redirect("/subscribe");
   return user;
 }

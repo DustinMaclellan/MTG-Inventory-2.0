@@ -19,6 +19,10 @@ Scryfall prices are persisted in `CurrentPrice` and deduplicated into one `Price
 
 Interactive search queries the local indexed catalog first. When the catalog is cold or sparse, the server fetches Scryfall, persists exact printings and current/daily prices, then serves database results. A bulk synchronization script supports scheduled catalog refreshes without coupling UI code to Scryfall.
 
+## Billing
+
+New accounts receive a 14-day application trial (`User.trialEndsAt`). After the trial, access requires an active Stripe subscription synced through `/api/stripe/webhook`. Marketing pages are public; product routes sit behind `src/proxy.ts` (session cookie) and `requireEntitlement()`.
+
 ## Scale and security
 
-Inventory reads use server-side pagination and indexed ownership paths. Session tokens are random, stored only as SHA-256 hashes, and sent in secure HTTP-only cookies. Passwords use Argon2id. Expensive provider calls remain server-side and can be moved behind a queue without changing UI contracts.
+Inventory reads use server-side pagination and indexed ownership paths. Session tokens are random, stored only as SHA-256 hashes, and sent in secure HTTP-only cookies. Passwords use Argon2id. Login and registration are rate-limited. Expensive provider calls remain server-side and can be moved behind a queue without changing UI contracts. Scheduled catalog refresh lives at `/api/cron/catalog-sync`.

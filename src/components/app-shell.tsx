@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { User } from "@prisma/client";
 import {
   Archive,
   BarChart3,
@@ -13,9 +14,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { logoutAction } from "@/app/actions";
+import { trialDaysRemaining } from "@/lib/entitlements";
 
 const navigation = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/collection", label: "Collection", icon: Library },
   { href: "/storage", label: "Storage", icon: Archive },
   { href: "/add", label: "Add Cards", icon: PlusCircle },
@@ -27,15 +29,17 @@ const navigation = [
 
 export function AppShell({
   children,
-  userName,
+  user,
 }: {
   children: React.ReactNode;
-  userName: string;
+  user: User;
 }) {
+  const daysLeft = trialDaysRemaining(user);
+
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-white/8 bg-[#0b0d10] p-5 lg:flex lg:flex-col">
-        <Link href="/" className="mb-10 flex items-center gap-3 px-2">
+        <Link href="/dashboard" className="mb-10 flex items-center gap-3 px-2">
           <span className="grid size-10 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_30px_rgba(52,211,153,.15)]">
             <Sparkles size={20} />
           </span>
@@ -66,10 +70,22 @@ export function AppShell({
               <LogOut size={18} /> Sign out
             </button>
           </form>
-          <p className="mt-4 truncate px-3 text-xs text-zinc-600">{userName}</p>
+          <p className="mt-4 truncate px-3 text-xs text-zinc-600">{user.displayName}</p>
         </div>
       </aside>
-      <main className="pb-24 lg:ml-64 lg:pb-0">{children}</main>
+      <main className="pb-24 lg:ml-64 lg:pb-0">
+        {daysLeft !== null && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-400/20 bg-emerald-400/8 px-5 py-3 text-sm text-emerald-100">
+            <p>
+              {daysLeft} day{daysLeft === 1 ? "" : "s"} left in your free trial.
+            </p>
+            <Link href="/subscribe" className="font-medium text-emerald-300 hover:text-white">
+              Subscribe
+            </Link>
+          </div>
+        )}
+        {children}
+      </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-white/10 bg-[#0b0d10]/95 px-2 py-2 backdrop-blur lg:hidden">
         {navigation.slice(0, 3).map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href} className="flex flex-col items-center gap-1 px-5 py-1 text-[11px] text-zinc-400">

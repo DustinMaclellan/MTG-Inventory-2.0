@@ -33,18 +33,44 @@ enum Currency {
   EUR
 }
 
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+}
+
 model User {
-  id                String       @id @default(cuid())
-  email             String       @unique
-  passwordHash      String
-  displayName       String
-  preferredCurrency Currency     @default(USD)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  sessions          Session[]
-  collections       Collection[]
+  id                   String             @id @default(cuid())
+  email                String             @unique
+  passwordHash         String
+  displayName          String
+  preferredCurrency    Currency           @default(USD)
+  trialEndsAt          DateTime
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  subscriptionStatus   SubscriptionStatus @default(TRIALING)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  sessions             Session[]
+  collections          Collection[]
+  passwordResetTokens  PasswordResetToken[]
 
   @@index([email])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Session {

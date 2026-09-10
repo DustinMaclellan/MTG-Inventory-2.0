@@ -98,3 +98,49 @@ button, a {
   background: #6ee7a0;
   transform: translateY(-1px);
 }
+
+.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: .75rem;
+  border: 1px solid rgba(255,255,255,.12);
+  background: transparent;
+  color: #f4f4f5;
+  padding: .72rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-secondary:hover {
+  background: rgba(255,255,255,.05);
+}
+
+.legal-copy h1 {
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -.03em;
+}
+
+.legal-copy h2 {
+  margin-top: 2rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.legal-copy p,
+.legal-copy li {
+  margin-top: 0.85rem;
+  line-height: 1.7;
+  color: #a1a1aa;
+}
+
+.legal-copy ul {
+  padding-left: 1.2rem;
+}
+
+.legal-copy code {
+  font-size: 0.9em;
+  color: #e4e4e7;
+}

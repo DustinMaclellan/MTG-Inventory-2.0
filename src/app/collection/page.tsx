@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { deleteInventoryAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
-import { requireUser } from "@/lib/auth";
+import { requireEntitlement } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { getInventory } from "@/services/inventory";
 
@@ -27,7 +27,7 @@ export default async function CollectionPage({
 }: {
   searchParams: Promise<{ page?: string; q?: string; storage?: string }>;
 }) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const params = await searchParams;
   const parsedPage = Number(params.page ?? "1");
   const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
@@ -38,7 +38,7 @@ export default async function CollectionPage({
   const filtersActive = Boolean(q || storage);
 
   return (
-    <AppShell userName={user.displayName}>
+    <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8 flex items-end justify-between gap-4">
           <div>

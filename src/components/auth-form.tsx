@@ -34,6 +34,13 @@ export function AuthForm({
       <button disabled={pending} className="button-primary w-full disabled:opacity-50">
         {pending ? "Please wait…" : registering ? "Create account" : "Sign in"}
       </button>
+      {!registering && (
+        <p className="text-center text-sm">
+          <Link className="text-emerald-400 hover:text-emerald-300" href="/forgot-password">
+            Forgot password?
+          </Link>
+        </p>
+      )}
       <p className="text-center text-sm text-zinc-500">
         {registering ? "Already have an account? " : "New to Mystic Ledger? "}
         <Link className="text-emerald-400 hover:text-emerald-300" href={registering ? "/login" : "/register"}>

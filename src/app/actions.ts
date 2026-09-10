@@ -1,6 +1,8 @@
 "use server";
 
+import { createHash, randomBytes } from "node:crypto";
 import { Condition, Currency, Finish } from "@prisma/client";
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -8,14 +10,30 @@ import {
   createSession,
   deleteSession,
   hashPassword,
+  requireEntitlement,
   requireUser,
   verifyPassword,
 } from "@/lib/auth";
+import { appUrl } from "@/lib/app-url";
+import { trialEndsAtFrom } from "@/lib/constants";
 import { db } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/email";
+import { clientIpFrom, rateLimit } from "@/lib/rate-limit";
+import { getStripe } from "@/lib/stripe";
 import { parseInventoryCsv } from "@/services/csv";
 import { scryfall } from "@/services/scryfall";
 
-export type FormState = { error?: string };
+export type FormState = { error?: string; notice?: string; devResetUrl?: string };
+
+function hashToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+async function enforceAuthRateLimit(email: string) {
+  const ip = clientIpFrom(await headers());
+  const limited = [rateLimit(`auth:ip:${ip}`), rateLimit(`auth:email:${email}`)];
+  return limited.every((result) => result.ok);
+}
 
 const credentialsSchema = z.object({
   email: z.email().trim().toLowerCase(),
@@ -27,6 +45,9 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
     .extend({ displayName: z.string().trim().min(2).max(60) })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Enter a valid name, email, and 10+ character password." };
+  if (!(await enforceAuthRateLimit(parsed.data.email))) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
 
   const exists = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (exists) return { error: "An account already exists for this email." };
@@ -37,23 +58,101 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
         email: parsed.data.email,
         displayName: parsed.data.displayName,
         passwordHash: await hashPassword(parsed.data.password),
+        trialEndsAt: trialEndsAtFrom(),
       },
     });
     await tx.collection.create({ data: { userId: created.id, name: "My Collection" } });
     return created;
   });
   await createSession(user.id);
-  redirect("/");
+  redirect("/dashboard");
 }
 
 export async function loginAction(_: FormState, formData: FormData): Promise<FormState> {
   const parsed = credentialsSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid email or password." };
+  if (!(await enforceAuthRateLimit(parsed.data.email))) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (!user || !(await verifyPassword(user.passwordHash, parsed.data.password))) {
     return { error: "Invalid email or password." };
   }
   await createSession(user.id);
+  redirect("/dashboard");
+}
+
+export async function requestPasswordResetAction(
+  _: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const parsed = z.object({ email: z.email().trim().toLowerCase() }).safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Enter a valid email." };
+  if (!(await enforceAuthRateLimit(parsed.data.email))) {
+    return { error: "Too many attempts. Try again in a few minutes." };
+  }
+
+  const user = await db.user.findUnique({ where: { email: parsed.data.email } });
+  const generic = { notice: "If an account exists for that email, we sent reset instructions." };
+  if (!user) return generic;
+
+  const token = randomBytes(32).toString("base64url");
+  await db.passwordResetToken.deleteMany({ where: { userId: user.id } });
+  await db.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    },
+  });
+  const resetUrl = `${appUrl()}/reset-password?token=${token}`;
+  const sent = await sendPasswordResetEmail(user.email, resetUrl);
+  if (!sent.delivered && process.env.NODE_ENV !== "production") {
+    return { ...generic, devResetUrl: resetUrl };
+  }
+  return generic;
+}
+
+export async function resetPasswordAction(_: FormState, formData: FormData): Promise<FormState> {
+  const parsed = z
+    .object({
+      token: z.string().min(20),
+      password: z.string().min(10).max(128),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: "Enter a 10+ character password from a valid reset link." };
+
+  const record = await db.passwordResetToken.findUnique({
+    where: { tokenHash: hashToken(parsed.data.token) },
+    include: { user: true },
+  });
+  if (!record || record.expiresAt <= new Date()) {
+    return { error: "This reset link is invalid or has expired." };
+  }
+
+  await db.$transaction([
+    db.user.update({
+      where: { id: record.userId },
+      data: { passwordHash: await hashPassword(parsed.data.password) },
+    }),
+    db.passwordResetToken.deleteMany({ where: { userId: record.userId } }),
+    db.session.deleteMany({ where: { userId: record.userId } }),
+  ]);
+  await createSession(record.userId);
+  redirect("/dashboard");
+}
+
+export async function deleteAccountAction(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const confirm = String(formData.get("confirm") ?? "");
+  if (confirm !== "DELETE") return { error: "Type DELETE to permanently remove your account." };
+
+  const stripe = getStripe();
+  if (stripe && user.stripeSubscriptionId) {
+    await stripe.subscriptions.cancel(user.stripeSubscriptionId).catch(() => undefined);
+  }
+  await deleteSession();
+  await db.user.delete({ where: { id: user.id } });
   redirect("/");
 }
 
@@ -76,7 +175,7 @@ const inventorySchema = z.object({
 });
 
 export async function addInventoryAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const parsed = inventorySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) throw new Error("Invalid inventory item");
 
@@ -104,7 +203,7 @@ export async function addInventoryAction(formData: FormData) {
       storageLocation: parsed.data.storageLocation || null,
     },
   });
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/collection");
   revalidatePath("/storage");
   revalidatePath("/add");
@@ -115,12 +214,12 @@ export async function addInventoryAction(formData: FormData) {
 }
 
 export async function deleteInventoryAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const itemId = z.string().cuid().parse(formData.get("itemId"));
   await db.inventoryItem.deleteMany({
     where: { id: itemId, collection: { userId: user.id } },
   });
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/collection");
 }
 
@@ -148,7 +247,7 @@ export async function previewImportAction(
   _: ImportPreviewState,
   formData: FormData,
 ): Promise<ImportPreviewState> {
-  await requireUser();
+  await requireEntitlement();
   const csv = z.string().max(2_000_000).safeParse(formData.get("csv"));
   if (!csv.success) return { error: "Paste a CSV smaller than 2 MB." };
   const parsed = parseInventoryCsv(csv.data);
@@ -215,7 +314,7 @@ const importRowsSchema = z.array(
 ).max(10_000);
 
 export async function commitImportAction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requireEntitlement();
   const decoded = JSON.parse(z.string().parse(formData.get("rows"))) as unknown;
   const rows = importRowsSchema.parse(decoded);
   const collection = await db.collection.findFirst({
@@ -240,7 +339,7 @@ export async function commitImportAction(formData: FormData) {
       }),
     ),
   );
-  revalidatePath("/");
+  revalidatePath("/dashboard");
   revalidatePath("/collection");
   redirect("/collection?imported=1");
 }
