@@ -1,24 +1,20 @@
 import Link from "next/link";
 import { PlusCircle, Boxes } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { dateLocale, getMessages, interpolate, isLocale, pickPlural, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export const metadata = { title: "Decks" };
 
-const FORMAT_LABELS: Record<string, string> = {
-  commander: "Commander",
-  standard: "Standard",
-  modern: "Modern",
-  legacy: "Legacy",
-  vintage: "Vintage",
-  pioneer: "Pioneer",
-  pauper: "Pauper",
-  draft: "Draft",
-};
+function formatLabel(format: string, m: Messages) {
+  return m.format[format as keyof typeof m.format] ?? format;
+}
 
 export default async function DecksPage() {
   const user = await requireEntitlement();
+  const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
+  const m = getMessages(locale);
   const decks = await db.deck.findMany({
     where: { userId: user.id },
     include: { _count: { select: { cards: true } } },
@@ -30,11 +26,13 @@ export default async function DecksPage() {
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8 flex items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-zinc-500">{decks.length} deck{decks.length === 1 ? "" : "s"}</p>
-            <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">Decks</h1>
+            <p className="text-sm text-zinc-500">
+              {pickPlural(decks.length, m.decks.count, m.decks.countPlural)}
+            </p>
+            <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">{m.decks.title}</h1>
           </div>
           <Link href="/decks/new" className="button-primary text-sm">
-            <PlusCircle size={16} /> New deck
+            <PlusCircle size={16} /> {m.decks.newDeck}
           </Link>
         </header>
 
@@ -43,12 +41,12 @@ export default async function DecksPage() {
             <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400">
               <Boxes size={22} />
             </div>
-            <p className="font-semibold">No decks yet.</p>
+            <p className="font-semibold">{m.decks.emptyTitle}</p>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-6 text-zinc-500">
-              Create your first deck and see which cards you already own.
+              {m.decks.emptyBody}
             </p>
             <Link href="/decks/new" className="button-primary mt-6 text-sm">
-              <PlusCircle size={16} /> Create a deck
+              <PlusCircle size={16} /> {m.decks.emptyCta}
             </Link>
           </div>
         ) : (
@@ -66,19 +64,21 @@ export default async function DecksPage() {
                     </p>
                     {deck.format && (
                       <p className="mt-1 text-xs text-zinc-500">
-                        {FORMAT_LABELS[deck.format] ?? deck.format}
+                        {formatLabel(deck.format, m)}
                       </p>
                     )}
                   </div>
                   <span className="shrink-0 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-xs font-medium text-zinc-400">
-                    {deck._count.cards} cards
+                    {interpolate(m.decks.cardsCount, { count: deck._count.cards })}
                   </span>
                 </div>
                 {deck.notes && (
                   <p className="line-clamp-2 text-xs leading-5 text-zinc-600">{deck.notes}</p>
                 )}
                 <p className="text-[11px] text-zinc-700">
-                  Updated {deck.updatedAt.toLocaleDateString()}
+                  {interpolate(m.decks.updated, {
+                    date: deck.updatedAt.toLocaleDateString(dateLocale(locale)),
+                  })}
                 </p>
               </Link>
             ))}

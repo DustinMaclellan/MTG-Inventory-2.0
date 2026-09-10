@@ -1,31 +1,35 @@
 import Link from "next/link";
 import { Archive, Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { dateLocale, getMessages, isLocale } from "@/i18n";
 import { formatMoney } from "@/lib/money";
 import { getStorageOverview } from "@/services/inventory";
 import { StorageLocationCard } from "./storage-location-card";
 
 export const metadata = { title: "Storage" };
 
-function money(value: number | null, currency: "USD" | "CAD" | "EUR") {
-  return value === null ? "—" : formatMoney(value, currency);
+function money(value: number | null, currency: "USD" | "CAD" | "EUR", locale: "en" | "fr") {
+  return value === null ? "—" : formatMoney(value, currency, locale);
 }
 
 export default async function StoragePage() {
   const { user, locations, summary } = await getStorageOverview();
+  const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
+  const m = getMessages(locale);
   const currency = user.preferredCurrency;
+  const numbers = dateLocale(locale);
 
   return (
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-zinc-500">Physical locations</p>
-            <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">Storage</h1>
+            <p className="text-sm text-zinc-500">{m.storage.eyebrow}</p>
+            <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">{m.storage.title}</h1>
           </div>
           <Link href="/add" className="button-primary text-sm">
             <Plus size={16} />
-            Add cards
+            {m.common.addCards}
           </Link>
         </header>
 
@@ -34,27 +38,27 @@ export default async function StoragePage() {
             <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400">
               <Archive size={22} />
             </div>
-            <p className="font-semibold">No storage yet</p>
+            <p className="font-semibold">{m.storage.emptyTitle}</p>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-500">
-              Add a location when you log cards — Binder A, Deck box, closet shelf — and they will group here.
+              {m.storage.emptyBody}
             </p>
             <Link href="/add" className="button-primary mt-6 text-sm">
               <Plus size={16} />
-              Add your first card
+              {m.storage.emptyCta}
             </Link>
           </div>
         ) : (
           <>
             <section className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <Stat label="Locations" value={summary.locationCount.toLocaleString()} />
-              <Stat label="Cards stored" value={summary.totalCards.toLocaleString()} />
+              <Stat label={m.storage.locations} value={summary.locationCount.toLocaleString(numbers)} />
+              <Stat label={m.storage.cardsStored} value={summary.totalCards.toLocaleString(numbers)} />
               <Stat
-                label="Stored value"
-                value={summary.hasPricedCards ? money(summary.totalValue, currency) : "—"}
+                label={m.storage.storedValue}
+                value={summary.hasPricedCards ? money(summary.totalValue, currency, locale) : "—"}
               />
               <Stat
-                label="Unassigned"
-                value={summary.unassignedCards.toLocaleString()}
+                label={m.storage.unassigned}
+                value={summary.unassignedCards.toLocaleString(numbers)}
                 accent={summary.unassignedCards > 0 ? "text-amber-400" : undefined}
               />
             </section>
@@ -67,7 +71,7 @@ export default async function StoragePage() {
                     name: location.name,
                     quantity: location.quantity,
                     lots: location.lots,
-                    marketValue: money(location.marketValue, currency),
+                    marketValue: money(location.marketValue, currency, locale),
                     topCards: location.topCards.map((card) => ({
                       id: card.id,
                       imageSmallUrl: card.imageSmallUrl,

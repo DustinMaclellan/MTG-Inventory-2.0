@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/actions";
+import { useI18n } from "@/i18n/provider";
 
 export function ForgotPasswordForm({
   action,
 }: {
   action: (state: FormState, data: FormData) => Promise<FormState>;
 }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState(action, {});
 
   return (
     <form action={formAction} className="mt-8 space-y-4">
       <label className="block text-sm text-zinc-400">
-        Email
+        {m.auth.email}
         <input name="email" type="email" autoComplete="email" required className="field mt-2" />
       </label>
       {state.error && (
@@ -27,18 +29,18 @@ export function ForgotPasswordForm({
       )}
       {state.devResetUrl && (
         <p className="rounded-lg bg-white/5 px-3 py-2 text-sm text-zinc-300">
-          Development reset link:{" "}
+          {m.auth.devResetLink}{" "}
           <Link href={state.devResetUrl} className="text-emerald-400 break-all">
             {state.devResetUrl}
           </Link>
         </p>
       )}
       <button disabled={pending} className="button-primary w-full disabled:opacity-50">
-        {pending ? "Please wait…" : "Send reset link"}
+        {pending ? m.common.pleaseWait : m.auth.sendLink}
       </button>
       <p className="text-center text-sm text-zinc-500">
         <Link className="text-emerald-400 hover:text-emerald-300" href="/login">
-          Back to sign in
+          {m.auth.backToSignIn}
         </Link>
       </p>
     </form>

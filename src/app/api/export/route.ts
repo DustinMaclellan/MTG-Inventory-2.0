@@ -1,4 +1,4 @@
-import { Finish } from "@prisma/client";
+import { Currency, Finish } from "@prisma/client";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   return exportInventory(user.id, user.preferredCurrency, storage);
 }
 
-async function exportInventory(userId: string, currency: string, storage: string) {
+async function exportInventory(userId: string, currency: Currency, storage: string) {
   if (storage.length > 120) return new Response("Invalid storage location.", { status: 400 });
 
   const items = await db.inventoryItem.findMany({
@@ -100,7 +100,7 @@ async function exportInventory(userId: string, currency: string, storage: string
   return csvResponse(filename, headers, rows);
 }
 
-async function exportDeck(userId: string, currency: string, deckId: string) {
+async function exportDeck(userId: string, currency: Currency, deckId: string) {
   if (!z.string().cuid().safeParse(deckId).success) {
     return new Response("Invalid deck.", { status: 400 });
   }

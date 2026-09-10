@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { ImportForm } from "@/components/import-form";
+import { getMessages, isLocale } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ExportPicker } from "./export-picker";
@@ -8,6 +9,8 @@ export const metadata = { title: "Import & export" };
 
 export default async function ImportsPage() {
   const user = await requireEntitlement();
+  const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
+  const m = getMessages(locale);
 
   const [locationCounts, decks] = await Promise.all([
     db.inventoryItem.groupBy({
@@ -37,27 +40,21 @@ export default async function ImportsPage() {
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8">
-          <p className="text-sm text-emerald-400">Safe bulk operations</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Import & export</h1>
-          <p className="mt-2 text-sm text-zinc-500">
-            Add lots from a spreadsheet, or download a CSV of what you already have.
-          </p>
+          <p className="text-sm text-emerald-400">{m.imports.eyebrow}</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{m.imports.title}</h1>
+          <p className="mt-2 text-sm text-zinc-500">{m.imports.intro}</p>
         </header>
 
         <div className="space-y-10">
           <section>
-            <h2 className="text-lg font-semibold tracking-tight">Import</h2>
-            <p className="mt-1 mb-5 text-sm text-zinc-500">
-              Paste a CSV of exact printings. Nothing is added until every row matches the catalog.
-            </p>
+            <h2 className="text-lg font-semibold tracking-tight">{m.imports.importTitle}</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">{m.imports.importBody}</p>
             <ImportForm />
           </section>
 
           <section>
-            <h2 className="text-lg font-semibold tracking-tight">Export</h2>
-            <p className="mt-1 mb-5 text-sm text-zinc-500">
-              Download your full collection, one binder, or one deck as a CSV file.
-            </p>
+            <h2 className="text-lg font-semibold tracking-tight">{m.imports.exportTitle}</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">{m.imports.exportBody}</p>
             <ExportPicker
               collectionCount={binders.reduce((sum, binder) => sum + binder.cardCount, 0)}
               binders={binders}

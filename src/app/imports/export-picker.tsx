@@ -2,13 +2,11 @@
 
 import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
+import { interpolate } from "@/i18n";
+import { useI18n } from "@/i18n/provider";
 
 type NamedOption = { name: string; cardCount: number };
 type DeckOption = { id: string; name: string; cardCount: number };
-
-function cardsLabel(count: number) {
-  return `${count} ${count === 1 ? "card" : "cards"}`;
-}
 
 export function ExportPicker({
   collectionCount,
@@ -19,29 +17,43 @@ export function ExportPicker({
   binders: NamedOption[];
   decks: DeckOption[];
 }) {
+  const { m } = useI18n();
+
   const options = useMemo(() => {
+    const cardsWord = (count: number) => (count === 1 ? m.imports.card : m.imports.cards);
     const items: Array<{ value: string; href: string; label: string; group: string }> = [
       {
         value: "collection",
         href: "/api/export",
-        label: `Entire collection · ${cardsLabel(collectionCount)}`,
-        group: "Collection",
+        label: interpolate(m.imports.entireCollection, {
+          count: collectionCount,
+          cards: cardsWord(collectionCount),
+        }),
+        group: m.imports.groupCollection,
       },
       ...binders.map((binder) => ({
         value: `storage:${binder.name}`,
         href: `/api/export?storage=${encodeURIComponent(binder.name === "Unassigned" ? "unassigned" : binder.name)}`,
-        label: `${binder.name} · ${cardsLabel(binder.cardCount)}`,
-        group: "Binders",
+        label: interpolate(m.imports.binderLabel, {
+          name: binder.name === "Unassigned" ? m.common.unassigned : binder.name,
+          count: binder.cardCount,
+          cards: cardsWord(binder.cardCount),
+        }),
+        group: m.imports.groupBinders,
       })),
       ...decks.map((deck) => ({
         value: `deck:${deck.id}`,
         href: `/api/export?deck=${deck.id}`,
-        label: `${deck.name} · ${cardsLabel(deck.cardCount)}`,
-        group: "Decks",
+        label: interpolate(m.imports.deckLabel, {
+          name: deck.name,
+          count: deck.cardCount,
+          cards: cardsWord(deck.cardCount),
+        }),
+        group: m.imports.groupDecks,
       })),
     ];
     return items;
-  }, [collectionCount, binders, decks]);
+  }, [collectionCount, binders, decks, m]);
 
   const groups = [...new Set(options.map((item) => item.group))];
   const [selected, setSelected] = useState(options[0]?.value ?? "collection");
@@ -69,7 +81,7 @@ export function ExportPicker({
         </select>
         <a href={href} className="button-primary h-11 text-sm">
           <Download size={16} />
-          Download
+          {m.common.download}
         </a>
       </div>
     </section>

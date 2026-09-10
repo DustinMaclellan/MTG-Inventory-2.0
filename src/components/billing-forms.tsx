@@ -4,8 +4,10 @@ import { useActionState } from "react";
 import { deleteAccountAction } from "@/app/actions";
 import { openBillingPortalAction } from "@/app/billing-actions";
 import type { FormState } from "@/app/actions";
+import { useI18n } from "@/i18n/provider";
 
 export function ManageBillingButton({ hasCustomer }: { hasCustomer: boolean }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState(openBillingPortalAction, {});
 
   if (!hasCustomer) return null;
@@ -18,19 +20,20 @@ export function ManageBillingButton({ hasCustomer }: { hasCustomer: boolean }) {
         </p>
       )}
       <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
-        {pending ? "Opening portal…" : "Manage billing"}
+        {pending ? m.billing.opening : m.billing.manage}
       </button>
     </form>
   );
 }
 
 export function DeleteAccountForm() {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState(deleteAccountAction, {});
 
   return (
     <form action={formAction} className="space-y-4">
       <label className="block text-sm text-zinc-400">
-        Type DELETE to confirm
+        {m.settings.deleteConfirm}
         <input name="confirm" className="field mt-2" autoComplete="off" />
       </label>
       {state.error && (
@@ -39,7 +42,7 @@ export function DeleteAccountForm() {
         </p>
       )}
       <button disabled={pending} className="rounded-xl bg-rose-500/15 px-4 py-2.5 text-sm font-medium text-rose-200 disabled:opacity-50">
-        {pending ? "Deleting…" : "Delete account"}
+        {pending ? m.billing.deleting : m.settings.deleteCta}
       </button>
     </form>
   );

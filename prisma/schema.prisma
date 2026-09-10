@@ -33,6 +33,11 @@ enum Currency {
   EUR
 }
 
+enum AppLocale {
+  en
+  fr
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -47,6 +52,7 @@ model User {
   passwordHash         String
   displayName          String
   preferredCurrency    Currency           @default(USD)
+  preferredLocale      AppLocale          @default(en)
   trialEndsAt          DateTime
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique

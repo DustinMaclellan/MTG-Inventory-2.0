@@ -9,12 +9,17 @@ import { z } from "zod";
 import {
   createSession,
   deleteSession,
+  getCurrentUser,
   hashPassword,
   requireEntitlement,
   requireUser,
   verifyPassword,
 } from "@/lib/auth";
 import { appUrl } from "@/lib/app-url";
+import { persistLocaleCookie } from "@/i18n/cookie";
+import { isLocale } from "@/i18n/config";
+import { getMessages } from "@/i18n";
+import { getRequestLocale } from "@/i18n/request";
 import { SESSION_COOKIE, trialEndsAtFrom } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
@@ -24,6 +29,25 @@ import { parseInventoryCsv } from "@/services/csv";
 import { scryfall } from "@/services/scryfall";
 
 export type FormState = { error?: string; notice?: string; devResetUrl?: string };
+
+async function t() {
+  return getMessages(await getRequestLocale());
+}
+
+export async function setLocaleAction(formData: FormData) {
+  const locale = formData.get("locale");
+  if (!isLocale(locale)) return;
+
+  await persistLocaleCookie(locale);
+  const user = await getCurrentUser();
+  if (user) {
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferredLocale: locale },
+    });
+  }
+  revalidatePath("/", "layout");
+}
 
 function hashToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
@@ -45,17 +69,19 @@ const credentialsSchema = z.object({
 });
 
 export async function registerAction(_: FormState, formData: FormData): Promise<FormState> {
+  const m = await t();
   const parsed = credentialsSchema
     .extend({ displayName: z.string().trim().min(2).max(60) })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Enter a valid name, email, and 10+ character password." };
+  if (!parsed.success) return { error: m.errors.registerInvalid };
   if (!(await enforceAuthRateLimit(parsed.data.email))) {
-    return { error: "Too many attempts. Try again in a few minutes." };
+    return { error: m.errors.tooMany };
   }
 
   const exists = await db.user.findUnique({ where: { email: parsed.data.email } });
-  if (exists) return { error: "An account already exists for this email." };
+  if (exists) return { error: m.errors.accountExists };
 
+  const locale = await getRequestLocale();
   const user = await db.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
@@ -63,25 +89,31 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
         displayName: parsed.data.displayName,
         passwordHash: await hashPassword(parsed.data.password),
         trialEndsAt: trialEndsAtFrom(),
+        preferredLocale: locale,
       },
     });
-    await tx.collection.create({ data: { userId: created.id, name: "My Collection" } });
+    await tx.collection.create({
+      data: { userId: created.id, name: locale === "fr" ? "Ma collection" : "My Collection" },
+    });
     return created;
   });
+  await persistLocaleCookie(locale);
   await createSession(user.id);
   redirect("/dashboard");
 }
 
 export async function loginAction(_: FormState, formData: FormData): Promise<FormState> {
+  const m = await t();
   const parsed = credentialsSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Invalid email or password." };
+  if (!parsed.success) return { error: m.errors.invalidAuth };
   if (!(await enforceAuthRateLimit(parsed.data.email))) {
-    return { error: "Too many attempts. Try again in a few minutes." };
+    return { error: m.errors.tooMany };
   }
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
   if (!user || !(await verifyPassword(user.passwordHash, parsed.data.password))) {
-    return { error: "Invalid email or password." };
+    return { error: m.errors.invalidAuth };
   }
+  await persistLocaleCookie(isLocale(user.preferredLocale) ? user.preferredLocale : "en");
   await createSession(user.id);
   redirect("/dashboard");
 }
@@ -91,13 +123,14 @@ export async function requestPasswordResetAction(
   formData: FormData,
 ): Promise<FormState> {
   const parsed = z.object({ email: z.email().trim().toLowerCase() }).safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Enter a valid email." };
+  const m = await t();
+  if (!parsed.success) return { error: m.errors.resetEmail };
   if (!(await enforceAuthRateLimit(parsed.data.email))) {
-    return { error: "Too many attempts. Try again in a few minutes." };
+    return { error: m.errors.tooMany };
   }
 
   const user = await db.user.findUnique({ where: { email: parsed.data.email } });
-  const generic = { notice: "If an account exists for that email, we sent reset instructions." };
+  const generic = { notice: m.auth.resetSent };
   if (!user) return generic;
 
   const token = randomBytes(32).toString("base64url");
@@ -124,14 +157,14 @@ export async function resetPasswordAction(_: FormState, formData: FormData): Pro
       password: z.string().min(10).max(128),
     })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Enter a 10+ character password from a valid reset link." };
+  if (!parsed.success) return { error: (await t()).errors.resetPassword };
 
   const record = await db.passwordResetToken.findUnique({
     where: { tokenHash: hashToken(parsed.data.token) },
     include: { user: true },
   });
   if (!record || record.expiresAt <= new Date()) {
-    return { error: "This reset link is invalid or has expired." };
+    return { error: (await t()).errors.resetExpired };
   }
 
   await db.$transaction([
@@ -149,7 +182,7 @@ export async function resetPasswordAction(_: FormState, formData: FormData): Pro
 export async function deleteAccountAction(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const confirm = String(formData.get("confirm") ?? "");
-  if (confirm !== "DELETE") return { error: "Type DELETE to permanently remove your account." };
+  if (confirm !== "DELETE") return { error: (await t()).errors.deleteConfirm };
 
   const stripe = getStripe();
   if (stripe && user.stripeSubscriptionId) {
@@ -170,7 +203,7 @@ export async function updateProfileAction(_: FormState, formData: FormData): Pro
   const parsed = z
     .object({ displayName: z.string().trim().min(2).max(60) })
     .safeParse({ displayName: formData.get("displayName") });
-  if (!parsed.success) return { error: "Enter a name between 2 and 60 characters." };
+  if (!parsed.success) return { error: (await t()).errors.nameLength };
 
   await db.user.update({
     where: { id: user.id },
@@ -178,7 +211,7 @@ export async function updateProfileAction(_: FormState, formData: FormData): Pro
   });
   revalidatePath("/settings");
   revalidatePath("/dashboard");
-  return { notice: "Name saved." };
+  return { notice: (await t()).settings.nameSaved };
 }
 
 export async function updatePreferencesAction(_: FormState, formData: FormData): Promise<FormState> {
@@ -186,7 +219,7 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
   const parsed = z
     .object({ preferredCurrency: z.enum(Currency) })
     .safeParse({ preferredCurrency: formData.get("preferredCurrency") });
-  if (!parsed.success) return { error: "Choose USD, CAD, or EUR." };
+  if (!parsed.success) return { error: (await t()).errors.currency };
 
   await db.user.update({
     where: { id: user.id },
@@ -196,7 +229,7 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
   revalidatePath("/dashboard");
   revalidatePath("/collection");
   revalidatePath("/storage");
-  return { notice: "Currency saved. Values now use Scryfall prices in that currency." };
+  return { notice: (await t()).settings.currencySaved };
 }
 
 export async function changePasswordAction(_: FormState, formData: FormData): Promise<FormState> {
@@ -207,18 +240,18 @@ export async function changePasswordAction(_: FormState, formData: FormData): Pr
       password: z.string().min(10).max(128),
     })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "New password must be at least 10 characters." };
+  if (!parsed.success) return { error: (await t()).errors.passwordLength };
 
   if (!(await enforceAuthRateLimit(user.email))) {
-    return { error: "Too many attempts. Try again in a few minutes." };
+    return { error: (await t()).errors.tooMany };
   }
 
   const fresh = await db.user.findUnique({ where: { id: user.id } });
   if (!fresh || !(await verifyPassword(fresh.passwordHash, parsed.data.currentPassword))) {
-    return { error: "Current password is incorrect." };
+    return { error: (await t()).errors.passwordWrong };
   }
   if (parsed.data.currentPassword === parsed.data.password) {
-    return { error: "Pick a new password that is different from the current one." };
+    return { error: (await t()).errors.passwordSame };
   }
 
   const currentToken = (await cookies()).get(SESSION_COOKIE)?.value;

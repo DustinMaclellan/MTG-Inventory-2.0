@@ -5,6 +5,8 @@ import { useActionState, useState } from "react";
 import { Check, Plus, Search } from "lucide-react";
 import { addDeckCardAction } from "@/app/decks/actions";
 import type { DeckFormState } from "@/app/decks/actions";
+import { interpolate } from "@/i18n";
+import { useI18n } from "@/i18n/provider";
 
 export type SearchResult = {
   cardId: string;       // oracle card — used for dedup
@@ -25,6 +27,7 @@ export function DeckCardSearch({
   deckId: string;
   existingPrintingIds: string[];
 }) {
+  const { m } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -47,7 +50,7 @@ export function DeckCardSearch({
         <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
         <input
           className="field field-with-icon text-sm"
-          placeholder="Card name…"
+          placeholder={m.decks.cardName}
           value={query}
           onChange={(e) => { setQuery(e.target.value); search(e.target.value); }}
         />
@@ -55,7 +58,7 @@ export function DeckCardSearch({
 
       {/* Spinner */}
       {searching && (
-        <p className="py-1 text-center text-xs text-zinc-600">Searching…</p>
+        <p className="py-1 text-center text-xs text-zinc-600">{m.decks.searching}</p>
       )}
 
       {/* Results — all printings of matching cards */}
@@ -87,6 +90,7 @@ function SearchResultRow({
   alreadyAdded: boolean;
   onAdded: () => void;
 }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState<DeckFormState, FormData>(
     addDeckCardAction,
     {},
@@ -114,10 +118,10 @@ function SearchResultRow({
           </p>
           {card.ownedQuantity > 0 ? (
             <p className="mt-1 text-[11px] font-semibold text-emerald-500">
-              ✓ You own {card.ownedQuantity} of this printing
+              {interpolate(m.decks.youOwn, { count: card.ownedQuantity })}
             </p>
           ) : (
-            <p className="mt-1 text-[11px] text-zinc-700">Not in your collection</p>
+            <p className="mt-1 text-[11px] text-zinc-700">{m.decks.notOwned}</p>
           )}
         </div>
       </div>
@@ -132,7 +136,7 @@ function SearchResultRow({
         <input type="hidden" name="printingId" value={card.printingId} />
         <input type="hidden" name="isCommanderZone" value="false" />
 
-        <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Qty</label>
+        <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.decks.qty}</label>
         <input
           name="quantity"
           type="number"
@@ -140,7 +144,7 @@ function SearchResultRow({
           max="99"
           defaultValue="1"
           className="w-16 rounded-lg border border-white/10 bg-black/50 px-2.5 py-1.5 text-center text-sm outline-none focus:border-emerald-400/50"
-          aria-label="Quantity"
+          aria-label={m.decks.qty}
         />
 
         <button
@@ -152,11 +156,11 @@ function SearchResultRow({
           }`}
         >
           {alreadyAdded ? (
-            <><Check size={13} /> In deck</>
+            <><Check size={13} /> {m.decks.inDeck}</>
           ) : pending ? (
-            "Adding…"
+            m.decks.adding
           ) : (
-            <><Plus size={13} /> Add</>
+            <><Plus size={13} /> {m.decks.add}</>
           )}
         </button>
 

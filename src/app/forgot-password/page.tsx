@@ -1,15 +1,17 @@
 import { requestPasswordResetAction } from "@/app/actions";
 import { AuthChrome } from "@/components/auth-chrome";
 import { ForgotPasswordForm } from "@/components/forgot-password-form";
+import { getRequestMessages } from "@/i18n/request";
 
 export const metadata = { title: "Forgot password" };
 
-export default function ForgotPasswordPage() {
+export default async function ForgotPasswordPage() {
+  const { m } = await getRequestMessages();
   return (
     <AuthChrome
-      eyebrow="Account recovery"
-      title="Reset your password"
-      subtitle="Enter the email on your account. If it exists, we will send a reset link."
+      eyebrow={m.auth.accountRecovery}
+      title={m.auth.forgotTitle}
+      subtitle={m.auth.forgotSubtitle}
     >
       <ForgotPasswordForm action={requestPasswordResetAction} />
     </AuthChrome>

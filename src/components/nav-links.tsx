@@ -12,20 +12,21 @@ import {
   Library,
   PlusCircle,
 } from "lucide-react";
-
-const navigation = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/collection", label: "Collection", icon: Library },
-  { href: "/storage", label: "Storage", icon: Archive },
-  { href: "/add", label: "Add Cards", icon: PlusCircle },
-  { href: "/imports", label: "Import / Export", icon: FileUp },
-  { href: "/decks", label: "Decks", icon: Boxes },
-  { href: "/analytics", label: "Analytics", icon: BarChart3, disabled: true },
-  { href: "/transactions", label: "Transactions", icon: CreditCard, disabled: true },
-];
+import { useI18n } from "@/i18n/provider";
 
 export function NavLinks() {
   const pathname = usePathname();
+  const { m } = useI18n();
+  const navigation = [
+    { href: "/dashboard", label: m.nav.dashboard, icon: LayoutDashboard },
+    { href: "/collection", label: m.nav.collection, icon: Library },
+    { href: "/storage", label: m.nav.storage, icon: Archive },
+    { href: "/add", label: m.nav.addCards, icon: PlusCircle },
+    { href: "/imports", label: m.nav.importExport, icon: FileUp },
+    { href: "/decks", label: m.nav.decks, icon: Boxes },
+    { href: "/analytics", label: m.nav.analytics, icon: BarChart3, disabled: true },
+    { href: "/transactions", label: m.nav.transactions, icon: CreditCard, disabled: true },
+  ];
 
   return (
     <nav className="space-y-0.5">
@@ -37,7 +38,9 @@ export function NavLinks() {
           >
             <Icon size={17} />
             {label}
-            <small className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-60">Soon</small>
+            <small className="ml-auto text-[10px] font-medium uppercase tracking-wider opacity-60">
+              {m.nav.soon}
+            </small>
           </span>
         ) : (
           <Link
@@ -58,14 +61,19 @@ export function NavLinks() {
   );
 }
 
-/** Compact bottom-bar navigation for mobile (≤ lg breakpoint) */
 export function MobileNav() {
   const pathname = usePathname();
-  const mobileItems = navigation.slice(0, 4).filter((n) => !n.disabled);
+  const { m } = useI18n();
+  const navigation = [
+    { href: "/dashboard", label: m.nav.dashboard, icon: LayoutDashboard },
+    { href: "/collection", label: m.nav.collection, icon: Library },
+    { href: "/storage", label: m.nav.storage, icon: Archive },
+    { href: "/add", label: m.nav.addCards, icon: PlusCircle },
+  ];
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-white/8 bg-[#080a0d]/95 px-1 py-1.5 backdrop-blur lg:hidden">
-      {mobileItems.map(({ href, label, icon: Icon }) => {
+      {navigation.map(({ href, label, icon: Icon }) => {
         const active = pathname === href || pathname.startsWith(href + "/");
         return (
           <Link

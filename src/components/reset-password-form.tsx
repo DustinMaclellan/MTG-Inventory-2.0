@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/actions";
+import { useI18n } from "@/i18n/provider";
 
 export function ResetPasswordForm({
   action,
@@ -11,14 +12,15 @@ export function ResetPasswordForm({
   action: (state: FormState, data: FormData) => Promise<FormState>;
   token: string;
 }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState(action, {});
 
   if (!token) {
     return (
       <p className="mt-8 text-sm text-rose-300">
-        This reset link is missing a token. Request a new one from{" "}
+        {m.auth.missingToken}{" "}
         <Link href="/forgot-password" className="text-emerald-400">
-          forgot password
+          {m.auth.forgotPasswordLink}
         </Link>
         .
       </p>
@@ -29,7 +31,7 @@ export function ResetPasswordForm({
     <form action={formAction} className="mt-8 space-y-4">
       <input type="hidden" name="token" value={token} />
       <label className="block text-sm text-zinc-400">
-        New password
+        {m.settings.newPassword}
         <input
           name="password"
           type="password"
@@ -45,7 +47,7 @@ export function ResetPasswordForm({
         </p>
       )}
       <button disabled={pending} className="button-primary w-full disabled:opacity-50">
-        {pending ? "Please wait…" : "Update password"}
+        {pending ? m.common.pleaseWait : m.auth.savePassword}
       </button>
     </form>
   );

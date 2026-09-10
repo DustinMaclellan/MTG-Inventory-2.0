@@ -8,6 +8,8 @@ import {
   renameStorageLocationAction,
   type RenameStorageState,
 } from "@/app/actions";
+import { interpolate, pickPlural } from "@/i18n";
+import { useI18n } from "@/i18n/provider";
 
 export type StorageCardLocation = {
   name: string;
@@ -26,9 +28,11 @@ function exportHref(name: string) {
 }
 
 export function StorageLocationCard({ location }: { location: StorageCardLocation }) {
+  const { m } = useI18n();
   const unassigned = location.name === "Unassigned";
   const extraLots = Math.max(0, location.lots - location.topCards.length);
   const [renaming, setRenaming] = useState(false);
+  const displayName = unassigned ? m.common.unassigned : location.name;
 
   return (
     <article className="panel group flex flex-col p-5 transition-all hover:border-emerald-400/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]">
@@ -52,11 +56,11 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
             ) : (
               <>
                 <div className="flex items-center gap-1.5">
-                  <h2 className="truncate font-semibold leading-snug">{location.name}</h2>
+                  <h2 className="truncate font-semibold leading-snug">{displayName}</h2>
                   {!unassigned && (
                     <button
                       type="button"
-                      title="Rename location"
+                      title={m.storage.rename}
                       onClick={() => setRenaming(true)}
                       className="rounded-md p-1 text-zinc-600 hover:bg-white/6 hover:text-zinc-300 transition-colors"
                     >
@@ -65,8 +69,10 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
                   )}
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {location.quantity.toLocaleString()} card{location.quantity === 1 ? "" : "s"} ·{" "}
-                  {location.lots.toLocaleString()} lot{location.lots === 1 ? "" : "s"}
+                  {pickPlural(location.lots, m.storage.cardsLots, m.storage.cardsLotsPlural, {
+                    cards: location.quantity,
+                    lots: location.lots,
+                  })}
                 </p>
               </>
             )}
@@ -100,13 +106,13 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
           </div>
           {extraLots > 0 && (
             <p className="mb-1 ml-3 text-xs text-zinc-600">
-              +{extraLots.toLocaleString()} more
+              {interpolate(m.storage.more, { count: extraLots.toLocaleString() })}
             </p>
           )}
         </div>
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
-            View lots <ArrowUpRight size={12} />
+            {m.common.viewLots} <ArrowUpRight size={12} />
           </p>
         </div>
       </Link>
@@ -115,7 +121,7 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
         className="mt-3 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
       >
         <Download size={12} />
-        Export CSV
+        {m.common.exportCsv}
       </a>
     </article>
   );
@@ -128,6 +134,7 @@ function RenameForm({
   currentName: string;
   onCancel: () => void;
 }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState<RenameStorageState, FormData>(
     renameStorageLocationAction,
     {},
@@ -142,21 +149,21 @@ function RenameForm({
         autoFocus
         maxLength={120}
         className="field py-1.5 text-sm"
-        aria-label="New location name"
+        aria-label={m.storage.newName}
       />
       <div className="flex items-center gap-2">
         <button
           disabled={pending}
           className="rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-50"
         >
-          {pending ? "Saving…" : "Save"}
+          {pending ? m.common.saving : m.common.save}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="text-xs text-zinc-500 hover:text-zinc-300"
         >
-          Cancel
+          {m.common.cancel}
         </button>
       </div>
       {state.error && <p className="text-xs text-rose-400">{state.error}</p>}

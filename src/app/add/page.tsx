@@ -3,6 +3,7 @@ import Link from "next/link";
 import { CheckCircle2, Search } from "lucide-react";
 import { addInventoryAction } from "@/app/actions";
 import { AppShell } from "@/components/app-shell";
+import { getMessages, interpolate, isLocale } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { formatMoney } from "@/lib/money";
 import { searchCatalog } from "@/services/catalog";
@@ -24,6 +25,8 @@ export default async function AddCardsPage({
   searchParams: Promise<{ q?: string; added?: string }>;
 }) {
   const user = await requireEntitlement();
+  const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
+  const m = getMessages(locale);
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
   const justAdded = params.added === "1";
@@ -33,20 +36,20 @@ export default async function AddCardsPage({
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8">
-          <p className="text-sm text-emerald-400">Exact printing search</p>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">Add cards</h1>
+          <p className="text-sm text-emerald-400">{m.add.eyebrow}</p>
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{m.add.title}</h1>
           <p className="mt-2 text-sm text-zinc-500">
-            Search by card name, set code, or collector number. Results and prices come from Scryfall.
+            {m.add.intro}
           </p>
         </header>
 
         {justAdded && (
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
             <span className="inline-flex items-center gap-2">
-              <CheckCircle2 size={16} /> Added to your collection. Keep searching to add more.
+              <CheckCircle2 size={16} /> {m.add.added}
             </span>
             <Link href="/collection" className="text-emerald-300 underline-offset-2 hover:underline">
-              View collection
+              {m.add.viewCollection}
             </Link>
           </div>
         )}
@@ -63,15 +66,15 @@ export default async function AddCardsPage({
               name="q"
               defaultValue={query}
               autoFocus
-              placeholder="Try “Rhystic Study”, “CMM”, or “161”…"
+              placeholder={m.add.searchExample}
             />
           </div>
-          <button className="button-primary px-5">Search</button>
+          <button className="button-primary px-5">{m.common.search}</button>
         </form>
 
         {query && (
           <p className="my-5 text-sm text-zinc-500">
-            {results.length} exact printings for “{query}”
+            {interpolate(m.add.results, { count: results.length, query })}
           </p>
         )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -110,9 +113,9 @@ export default async function AddCardsPage({
                     </div>
                     <div className="mt-3">
                       {market !== null ? (
-                        <span className="text-sm font-semibold">{formatMoney(market, "USD")}</span>
+                        <span className="text-sm font-semibold">{formatMoney(market, "USD", locale)}</span>
                       ) : (
-                        <span className="text-xs text-zinc-600">Pricing unavailable</span>
+                        <span className="text-xs text-zinc-600">{m.common.pricingUnavailable}</span>
                       )}
                     </div>
                   </div>
@@ -127,36 +130,36 @@ export default async function AddCardsPage({
                   <input type="hidden" name="returnQuery" value={query} />
 
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Qty</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.add.qty}</label>
                     <input
                       className="field py-2 px-3 text-sm"
                       name="quantity"
                       type="number"
                       min="1"
                       defaultValue="1"
-                      aria-label="Quantity"
+                      aria-label={m.add.quantity}
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Finish</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.add.finish}</label>
                     <select className="field py-2 px-3 text-sm" name="finish" defaultValue={printing.finishes[0]}>
                       {printing.finishes.map((finish) => (
-                        <option key={finish} value={finish}>{finish.charAt(0) + finish.slice(1).toLowerCase()}</option>
+                        <option key={finish} value={finish}>{m.finish[finish as keyof typeof m.finish]}</option>
                       ))}
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Condition</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.add.condition}</label>
                     <select className="field py-2 px-3 text-sm" name="condition" defaultValue="NEAR_MINT">
-                      <option value="NEAR_MINT">Near Mint</option>
-                      <option value="LIGHTLY_PLAYED">Lightly Played</option>
-                      <option value="MODERATELY_PLAYED">Moderately Played</option>
-                      <option value="HEAVILY_PLAYED">Heavily Played</option>
-                      <option value="DAMAGED">Damaged</option>
+                      <option value="NEAR_MINT">{m.condition.NEAR_MINT}</option>
+                      <option value="LIGHTLY_PLAYED">{m.condition.LIGHTLY_PLAYED}</option>
+                      <option value="MODERATELY_PLAYED">{m.condition.MODERATELY_PLAYED}</option>
+                      <option value="HEAVILY_PLAYED">{m.condition.HEAVILY_PLAYED}</option>
+                      <option value="DAMAGED">{m.condition.DAMAGED}</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Paid each</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.add.paidEach}</label>
                     <input
                       className="field py-2 px-3 text-sm"
                       name="purchasePrice"
@@ -167,15 +170,15 @@ export default async function AddCardsPage({
                     />
                   </div>
                   <div className="col-span-2 flex flex-col gap-1">
-                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">Storage location</label>
+                    <label className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{m.add.storageLocation}</label>
                     <input
                       className="field py-2 px-3 text-sm"
                       name="storageLocation"
-                      placeholder="Binder A, Box 2… (optional)"
+                      placeholder={m.add.storageHint}
                     />
                   </div>
                   <button className="button-primary col-span-2 py-2.5 text-sm">
-                    Add to collection
+                    {m.add.addToCollection}
                   </button>
                 </form>
               </article>

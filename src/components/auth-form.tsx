@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { Check } from "lucide-react";
 import type { FormState } from "@/app/actions";
+import { interpolate } from "@/i18n";
+import { useI18n } from "@/i18n/provider";
 import { TRIAL_DAYS } from "@/lib/constants";
 
 export function AuthForm({
@@ -13,6 +15,7 @@ export function AuthForm({
   action: (state: FormState, data: FormData) => Promise<FormState>;
   mode: "login" | "register";
 }) {
+  const { m } = useI18n();
   const [state, formAction, pending] = useActionState(action, {});
   const registering = mode === "register";
 
@@ -20,7 +23,7 @@ export function AuthForm({
     <form action={formAction} className="mt-7 space-y-4">
       {registering && (
         <label className="block">
-          <span className="text-xs font-medium text-zinc-400">Your name</span>
+          <span className="text-xs font-medium text-zinc-400">{m.auth.yourName}</span>
           <input
             name="displayName"
             autoComplete="name"
@@ -32,7 +35,7 @@ export function AuthForm({
       )}
 
       <label className="block">
-        <span className="text-xs font-medium text-zinc-400">Email</span>
+        <span className="text-xs font-medium text-zinc-400">{m.auth.email}</span>
         <input
           name="email"
           type="email"
@@ -44,7 +47,7 @@ export function AuthForm({
       </label>
 
       <label className="block">
-        <span className="text-xs font-medium text-zinc-400">Password</span>
+        <span className="text-xs font-medium text-zinc-400">{m.auth.password}</span>
         <input
           name="password"
           type="password"
@@ -52,7 +55,7 @@ export function AuthForm({
           autoComplete={registering ? "new-password" : "current-password"}
           required
           className="field mt-1.5"
-          placeholder={registering ? "At least 10 characters" : ""}
+          placeholder={registering ? m.auth.passwordHint : ""}
         />
       </label>
 
@@ -72,22 +75,21 @@ export function AuthForm({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            Please wait…
+            {m.common.pleaseWait}
           </span>
         ) : registering ? (
-          "Create account"
+          m.auth.createAccount
         ) : (
-          "Sign in"
+          m.common.signIn
         )}
       </button>
 
-      {/* Trial benefits on register */}
       {registering && (
         <ul className="space-y-1.5 pt-1">
           {[
-            `${TRIAL_DAYS} days free — no card required`,
-            "Full access during trial",
-            "Cancel anytime after",
+            interpolate(m.auth.benefit1, { days: TRIAL_DAYS }),
+            m.auth.benefit2,
+            m.auth.benefit3,
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 text-xs text-zinc-600">
               <Check size={12} className="shrink-0 text-emerald-500" aria-hidden />
@@ -100,18 +102,18 @@ export function AuthForm({
       {!registering && (
         <p className="text-center text-sm">
           <Link className="text-zinc-500 hover:text-zinc-300 transition-colors text-sm" href="/forgot-password">
-            Forgot your password?
+            {m.auth.forgot}
           </Link>
         </p>
       )}
 
       <p className="border-t border-white/6 pt-4 text-center text-sm text-zinc-600">
-        {registering ? "Already have an account? " : "New to Mystic Ledger? "}
+        {registering ? `${m.auth.alreadyAccount} ` : `${m.auth.newTo} `}
         <Link
           className="font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
           href={registering ? "/login" : "/register"}
         >
-          {registering ? "Sign in" : "Start free trial"}
+          {registering ? m.common.signIn : m.common.startFreeTrial}
         </Link>
       </p>
     </form>

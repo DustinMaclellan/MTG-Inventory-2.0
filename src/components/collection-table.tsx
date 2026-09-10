@@ -11,6 +11,8 @@ import {
 } from "@/app/actions";
 import type { BulkUpdateState } from "@/app/actions";
 import type { Condition, Currency, Finish } from "@prisma/client";
+import { interpolate, pickPlural } from "@/i18n";
+import { useI18n } from "@/i18n/provider";
 import { formatMoney } from "@/lib/money";
 
 // ─── Types ─────────────────────────────────────────────────
@@ -70,6 +72,7 @@ export function CollectionTable({
   filtersActive: boolean;
   currentQ: string;
 }) {
+  const { locale, m } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -122,12 +125,12 @@ export function CollectionTable({
   }, [items, sortKey, sortDir]);
 
   const cols: { label: string; key: SortKey }[] = [
-    { label: "Qty",      key: "qty" },
-    { label: "Cond.",    key: "condition" },
-    { label: "Finish",   key: "finish" },
-    { label: "Paid",     key: "paid" },
-    { label: "Market",   key: "market" },
-    { label: "Value",    key: "value" },
+    { label: m.collection.qty, key: "qty" },
+    { label: m.collection.cond, key: "condition" },
+    { label: m.collection.finish, key: "finish" },
+    { label: m.collection.paid, key: "paid" },
+    { label: m.collection.market, key: "market" },
+    { label: m.collection.value, key: "value" },
   ];
 
   return (
@@ -143,17 +146,17 @@ export function CollectionTable({
                   ref={(el) => { if (el) el.indeterminate = someChecked; }}
                   onChange={toggleAll}
                   className="accent-emerald-400 cursor-pointer"
-                  aria-label="Select all"
+                  aria-label={m.collection.selectAll}
                 />
               </th>
 
               {/* Card — sortable */}
               <th className="px-4 py-3">
-                <SortBtn label="Card" col="name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortBtn label={m.collection.card} col="name" current={sortKey} dir={sortDir} onSort={handleSort} />
               </th>
 
               {/* Printing — static */}
-              <th className="px-4 py-3">Printing</th>
+              <th className="px-4 py-3">{m.collection.printing}</th>
 
               {/* Sortable columns */}
               {cols.map(({ label, key }) => (
@@ -163,7 +166,7 @@ export function CollectionTable({
               ))}
 
               {/* Storage + actions — static */}
-              <th className="px-4 py-3">Storage</th>
+              <th className="px-4 py-3">{m.collection.storage}</th>
               <th />
             </tr>
           </thead>
@@ -205,12 +208,12 @@ export function CollectionTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-400">
-                    {item.finish.charAt(0) + item.finish.slice(1).toLowerCase()}
+                    {m.finish[item.finish]}
                   </td>
-                  <td className="px-4 py-3 text-sm">{formatMoney(item.purchasePrice, item.purchaseCurrency)}</td>
-                  <td className="px-4 py-3 text-sm">{formatMoney(market, currency)}</td>
+                  <td className="px-4 py-3 text-sm">{formatMoney(item.purchasePrice, item.purchaseCurrency, locale)}</td>
+                  <td className="px-4 py-3 text-sm">{formatMoney(market, currency, locale)}</td>
                   <td className="px-4 py-3 text-sm font-medium">
-                    {formatMoney(market === null ? null : market * item.quantity, currency)}
+                    {formatMoney(market === null ? null : market * item.quantity, currency, locale)}
                   </td>
                   <td className="max-w-36 truncate px-4 py-3 text-xs text-zinc-500">
                     {item.storageLocation ? (
@@ -223,7 +226,7 @@ export function CollectionTable({
                   <td className="px-4 py-3">
                     <form action={deleteInventoryAction}>
                       <input type="hidden" name="itemId" value={item.id} />
-                      <button title="Delete lot"
+                      <button title={m.collection.deleteLot}
                         className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors">
                         <Trash2 size={15} />
                       </button>
@@ -237,9 +240,7 @@ export function CollectionTable({
 
         {!sorted.length && (
           <div className="px-5 py-16 text-center text-sm text-zinc-500">
-            {filtersActive
-              ? "No lots match these filters."
-              : "No cards yet. Add an exact printing to begin."}
+            {filtersActive ? m.collection.emptyFiltered : m.collection.empty}
           </div>
         )}
       </div>
@@ -274,6 +275,7 @@ function SortBtn({
 
 // ─── Bulk action bar ────────────────────────────────────────
 function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () => void }) {
+  const { m } = useI18n();
   const [updateState, updateAction, updatePending] = useActionState<BulkUpdateState, FormData>(
     bulkUpdateInventoryAction, {},
   );
@@ -296,7 +298,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
 
           {/* Label */}
           <span className="px-4 py-3 text-sm font-semibold text-emerald-300 whitespace-nowrap">
-            {count} {count === 1 ? "lot" : "lots"} selected
+            {pickPlural(count, m.collection.lotsSelected, m.collection.lotsSelectedPlural)}
           </span>
 
           {/* Update: storage + condition + apply */}
@@ -305,17 +307,17 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
             <input
               name="storageLocation"
               className="h-8 w-36 rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-emerald-400/50"
-              placeholder="Storage…"
+              placeholder={m.collection.storagePlaceholder}
             />
             <select
               name="condition"
               defaultValue=""
               className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-emerald-400/50"
             >
-              <option value="">Condition…</option>
+              <option value="">{m.collection.conditionPlaceholder}</option>
               {ALL_CONDITIONS.map((c) => (
                 <option key={c} value={c}>
-                  {c.replaceAll("_", " ").replace(/\b\w/g, (l) => l.toUpperCase())}
+                  {m.condition[c]}
                 </option>
               ))}
             </select>
@@ -324,7 +326,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
               className="flex h-8 items-center gap-1.5 rounded-lg bg-emerald-400 px-3 text-sm font-bold text-black hover:bg-emerald-300 disabled:opacity-50 transition-colors"
             >
               <Check size={13} />
-              {updatePending ? "Saving…" : "Apply"}
+              {updatePending ? m.common.saving : m.common.apply}
             </button>
           </form>
 
@@ -333,7 +335,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
             action={deleteAction}
             className="px-3 py-2"
             onSubmit={(e) => {
-              if (!confirm(`Permanently delete ${count} lot${count === 1 ? "" : "s"}? This cannot be undone.`))
+              if (!confirm(pickPlural(count, m.collection.deleteConfirm, m.collection.deleteConfirmPlural)))
                 e.preventDefault();
             }}
           >
@@ -343,14 +345,14 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
               className="flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 text-sm font-medium text-rose-400 hover:bg-rose-500/18 disabled:opacity-50 transition-colors whitespace-nowrap"
             >
               <Trash2 size={13} />
-              {deletePending ? "Deleting…" : `Delete ${count}`}
+              {deletePending ? m.common.deleting : interpolate(m.collection.deleteCount, { count })}
             </button>
           </form>
 
           {/* Dismiss */}
           <button
             onClick={onDone}
-            aria-label="Dismiss"
+            aria-label={m.collection.dismiss}
             className="flex h-full items-center px-3 text-zinc-600 hover:text-zinc-300 transition-colors"
           >
             <X size={15} />

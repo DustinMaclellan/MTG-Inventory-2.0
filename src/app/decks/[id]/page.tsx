@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Boxes, Download, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { getMessages, interpolate, isLocale, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { removeDeckCardAction } from "@/app/decks/actions";
@@ -15,20 +16,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return { title: deck?.name ?? "Deck" };
 }
 
-const FORMAT_LABELS: Record<string, string> = {
-  commander: "Commander / EDH",
-  standard: "Standard",
-  modern: "Modern",
-  legacy: "Legacy",
-  vintage: "Vintage",
-  pioneer: "Pioneer",
-  pauper: "Pauper",
-  draft: "Draft / Limited",
-};
-
 export default async function DeckPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const user = await requireEntitlement();
+  const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
+  const m = getMessages(locale);
 
   const deck = await db.deck.findFirst({
     where: { id, userId: user.id },
@@ -105,7 +97,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             href="/decks"
             className="inline-flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
           >
-            ← All decks
+            ← {m.decks.allDecks}
           </Link>
 
           <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
@@ -113,7 +105,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-4xl font-semibold tracking-tight">{deck.name}</h1>
                 {deck.format && (
-                  <span className="badge">{FORMAT_LABELS[deck.format] ?? deck.format}</span>
+                  <span className="badge">{m.format[deck.format as keyof typeof m.format] ?? deck.format}</span>
                 )}
               </div>
               {deck.notes && (
@@ -125,7 +117,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                   className="mt-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
                 >
                   <Download size={15} />
-                  Export CSV
+                  {m.common.exportCsv}
                 </a>
               )}
             </div>
@@ -133,13 +125,13 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             {/* Completion summary */}
             {totalCards > 0 && (
               <div className="panel flex items-center gap-6 px-6 py-4">
-                <Stat label="Total" value={totalCards} />
+                <Stat label={m.decks.total} value={totalCards} />
                 <Divider />
-                <Stat label="Owned" value={ownedCards} color="text-emerald-400" />
+                <Stat label={m.decks.owned} value={ownedCards} color="text-emerald-400" />
                 <Divider />
-                <Stat label="Missing" value={missingCards} color={missingCards > 0 ? "text-rose-400" : "text-zinc-500"} />
+                <Stat label={m.decks.missing} value={missingCards} color={missingCards > 0 ? "text-rose-400" : "text-zinc-500"} />
                 <Divider />
-                <Stat label="Complete" value={`${completionPct}%`} color={completionPct === 100 ? "text-emerald-400" : "text-zinc-300"} />
+                <Stat label={m.decks.complete} value={`${completionPct}%`} color={completionPct === 100 ? "text-emerald-400" : "text-zinc-300"} />
               </div>
             )}
           </div>
@@ -156,9 +148,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl border border-zinc-700/40 bg-zinc-800/40 text-zinc-500">
                   <Boxes size={22} />
                 </div>
-                <p className="font-semibold">No cards yet</p>
+                <p className="font-semibold">{m.decks.noCards}</p>
                 <p className="mt-2 text-sm text-zinc-500">
-                  Search for cards in the panel on the right to build your deck.
+                  {m.decks.noCardsBody}
                 </p>
               </div>
             ) : (
@@ -166,16 +158,17 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                 {/* Commander zone */}
                 {commanders.length > 0 && (
                   <CardGroup
-                    label="Commander"
+                    label={m.decks.commander}
                     rows={commanders}
                     deckId={deck.id}
+                    m={m}
                   />
                 )}
-                {/* Mainboard */}
                 <CardGroup
-                  label={commanders.length > 0 ? `Mainboard · ${mainboard.length} cards` : undefined}
+                  label={commanders.length > 0 ? interpolate(m.decks.mainboard, { count: mainboard.length }) : undefined}
                   rows={mainboard}
                   deckId={deck.id}
+                  m={m}
                 />
               </>
             )}
@@ -185,9 +178,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
             {/* Search */}
             <div className="panel flex flex-col p-5">
-              <p className="mb-1 text-sm font-semibold">Add cards</p>
+              <p className="mb-1 text-sm font-semibold">{m.decks.addCards}</p>
               <p className="mb-4 text-xs text-zinc-600">
-                Search by card name. Owned copies are highlighted.
+                {m.decks.addHint}
               </p>
               {/* Results scroll inside the panel — never pushes Delete down */}
               <div className="max-h-[60vh] overflow-y-auto">
@@ -198,7 +191,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
             {/* Delete */}
             <div className="panel p-5">
               <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                Danger zone
+                {m.decks.danger}
               </p>
               <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
             </div>
@@ -233,10 +226,12 @@ function CardGroup({
   label,
   rows,
   deckId,
+  m,
 }: {
   label?: string;
   rows: DeckCardRow[];
   deckId: string;
+  m: Messages;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -257,10 +252,10 @@ function CardGroup({
 
           // Status badge
           const statusText = dc.fullyOwned
-            ? "Owned"
+            ? m.decks.ownedBadge
             : dc.partial
             ? `${dc.ownedQty} / ${dc.quantity}`
-            : "Missing";
+            : m.decks.missingBadge;
           const statusColor = dc.fullyOwned
             ? "text-emerald-400 bg-emerald-400/8 border-emerald-400/20"
             : dc.partial
@@ -297,7 +292,7 @@ function CardGroup({
                 </p>
                 {dc.isCommanderZone && (
                   <span className="mt-1 inline-block rounded border border-emerald-400/25 bg-emerald-400/8 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                    Commander
+                    {m.decks.commander}
                   </span>
                 )}
               </div>
@@ -315,7 +310,7 @@ function CardGroup({
                 <input type="hidden" name="deckCardId" value={dc.id} />
                 <input type="hidden" name="deckId" value={deckId} />
                 <button
-                  title="Remove from deck"
+                  title={m.decks.remove}
                   className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
                 >
                   <Trash2 size={14} />

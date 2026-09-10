@@ -42,12 +42,15 @@ export function calculatePortfolio(lines: ValuationLine[]): PortfolioTotals {
   };
 }
 
+import type { AppLocale } from "@/i18n/config";
+
 export function formatMoney(
   value: number | null,
   currency: "USD" | "CAD" | "EUR" = "USD",
+  locale: AppLocale = "en",
 ) {
-  if (value === null) return "Pricing unavailable";
-  return new Intl.NumberFormat("en-US", {
+  if (value === null) return locale === "fr" ? "Prix indisponible" : "Pricing unavailable";
+  return new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-US", {
     style: "currency",
     currency,
     maximumFractionDigits: 2,

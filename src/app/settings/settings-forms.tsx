@@ -7,6 +7,7 @@ import {
   updateProfileAction,
   type FormState,
 } from "@/app/actions";
+import { useI18n } from "@/i18n/provider";
 
 function FormAlert({ state }: { state: FormState }) {
   if (state.error) {
@@ -28,11 +29,12 @@ function FormAlert({ state }: { state: FormState }) {
 
 export function ProfileForm({ displayName, email }: { displayName: string; email: string }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updateProfileAction, {});
+  const { m } = useI18n();
 
   return (
     <form action={formAction} className="space-y-5">
       <label className="block">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Name</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">{m.settings.name}</span>
         <input
           name="displayName"
           defaultValue={displayName}
@@ -44,13 +46,13 @@ export function ProfileForm({ displayName, email }: { displayName: string; email
         />
       </label>
       <div>
-        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">Email</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{m.settings.email}</p>
         <p className="mt-1.5 text-sm text-zinc-300">{email}</p>
-        <p className="mt-1 text-xs text-zinc-600">Used to sign in. Email cannot be changed yet.</p>
+        <p className="mt-1 text-xs text-zinc-600">{m.settings.emailHint}</p>
       </div>
       <FormAlert state={state} />
       <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
-        {pending ? "Saving…" : "Save name"}
+        {pending ? m.common.saving : m.settings.saveName}
       </button>
     </form>
   );
@@ -58,11 +60,14 @@ export function ProfileForm({ displayName, email }: { displayName: string; email
 
 export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updatePreferencesAction, {});
+  const { m } = useI18n();
 
   return (
     <form action={formAction} className="space-y-5">
       <label className="block max-w-xs">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Display currency</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {m.settings.displayCurrency}
+        </span>
         <select
           name="preferredCurrency"
           defaultValue={currency}
@@ -73,12 +78,10 @@ export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" 
           <option value="EUR">EUR — Euro</option>
         </select>
       </label>
-      <p className="text-xs leading-5 text-zinc-600">
-        Dashboard, collection, and storage use Scryfall market prices in this currency. There is no conversion — if a printing has no price in that currency, it shows as unavailable.
-      </p>
+      <p className="text-xs leading-5 text-zinc-600">{m.settings.currencyHint}</p>
       <FormAlert state={state} />
       <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
-        {pending ? "Saving…" : "Save currency"}
+        {pending ? m.common.saving : m.settings.saveCurrency}
       </button>
     </form>
   );
@@ -86,11 +89,14 @@ export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" 
 
 export function PasswordForm() {
   const [state, formAction, pending] = useActionState<FormState, FormData>(changePasswordAction, {});
+  const { m } = useI18n();
 
   return (
     <form action={formAction} className="space-y-5">
       <label className="block">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">Current password</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {m.settings.currentPassword}
+        </span>
         <input
           name="currentPassword"
           type="password"
@@ -100,7 +106,9 @@ export function PasswordForm() {
         />
       </label>
       <label className="block">
-        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">New password</span>
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {m.settings.newPassword}
+        </span>
         <input
           name="password"
           type="password"
@@ -109,12 +117,12 @@ export function PasswordForm() {
           maxLength={128}
           autoComplete="new-password"
           className="field mt-1.5"
-          placeholder="At least 10 characters"
+          placeholder={m.settings.passwordPlaceholder}
         />
       </label>
       <FormAlert state={state} />
       <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
-        {pending ? "Updating…" : "Update password"}
+        {pending ? m.common.updating : m.settings.updatePassword}
       </button>
     </form>
   );
