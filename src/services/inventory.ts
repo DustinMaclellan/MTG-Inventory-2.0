@@ -122,6 +122,7 @@ export async function getStorageOverview() {
         collectorNumber: string;
         quantity: number;
         value: number | null;
+        imageSmallUrl: string | null;
       }>;
     }
   >();
@@ -153,20 +154,37 @@ export async function getStorageOverview() {
       collectorNumber: item.cardPrinting.collectorNumber,
       quantity: item.quantity,
       value,
+      imageSmallUrl: item.cardPrinting.imageSmallUrl,
     });
     groups.set(key, group);
   }
 
+  const locations = [...groups.values()]
+    .map((group) => ({
+      ...group,
+      topCards: group.topCards
+        .sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
+        .slice(0, 4),
+    }))
+    .sort((a, b) => {
+      if (a.name === "Unassigned") return 1;
+      if (b.name === "Unassigned") return -1;
+      return (b.marketValue ?? -1) - (a.marketValue ?? -1);
+    });
+
+  const named = locations.filter((loc) => loc.name !== "Unassigned");
+  const unassigned = locations.find((loc) => loc.name === "Unassigned");
+
   return {
     user,
-    locations: [...groups.values()]
-      .map((group) => ({
-        ...group,
-        topCards: group.topCards
-          .sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
-          .slice(0, 4),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
+    locations,
+    summary: {
+      locationCount: named.length,
+      totalCards: locations.reduce((sum, loc) => sum + loc.quantity, 0),
+      totalValue: locations.reduce((sum, loc) => sum + (loc.marketValue ?? 0), 0),
+      hasPricedCards: locations.some((loc) => loc.marketValue !== null),
+      unassignedCards: unassigned?.quantity ?? 0,
+    },
   };
 }
 

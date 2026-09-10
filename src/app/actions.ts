@@ -267,6 +267,44 @@ export async function bulkUpdateInventoryAction(
   return { updated: result.count };
 }
 
+export type RenameStorageState = { error?: string };
+
+export async function renameStorageLocationAction(
+  _: RenameStorageState,
+  formData: FormData,
+): Promise<RenameStorageState> {
+  const user = await requireEntitlement();
+  const parsed = z
+    .object({
+      from: z.string().trim().min(1).max(120),
+      to: z.string().trim().min(1).max(120),
+    })
+    .safeParse({ from: formData.get("from"), to: formData.get("to") });
+
+  if (!parsed.success) return { error: "Enter a location name (max 120 characters)." };
+  if (parsed.data.from.toLowerCase() === "unassigned") {
+    return { error: "Unassigned is not a location you can rename." };
+  }
+
+  const to = parsed.data.to;
+  if (to.toLowerCase() === "unassigned") {
+    return { error: "Pick a real location name, or use bulk edit to clear storage." };
+  }
+
+  await db.inventoryItem.updateMany({
+    where: {
+      collection: { userId: user.id },
+      storageLocation: { equals: parsed.data.from, mode: "insensitive" },
+    },
+    data: { storageLocation: to },
+  });
+
+  revalidatePath("/storage");
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+  return {};
+}
+
 export async function bulkDeleteInventoryAction(
   _: BulkUpdateState,
   formData: FormData,
