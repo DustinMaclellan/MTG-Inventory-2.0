@@ -11,7 +11,6 @@ import {
   Sparkles,
   Wallet,
 } from "lucide-react";
-import { LandingAccentLock } from "@/components/landing-accent-lock";
 import { LandingDashboardPreview } from "@/components/landing-dashboard-preview";
 import { MarketingShell } from "@/components/marketing-shell";
 import { interpolate } from "@/i18n";
@@ -41,7 +40,6 @@ export default async function LandingPage() {
 
   return (
     <MarketingShell>
-      <LandingAccentLock />
       <section className="relative mx-auto max-w-6xl px-5 py-20 sm:py-32">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           <div className="absolute -left-48 -top-32 h-[700px] w-[700px] rounded-full bg-accent/6 blur-[130px]" />

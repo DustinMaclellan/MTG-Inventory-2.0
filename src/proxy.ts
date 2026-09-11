@@ -48,6 +48,7 @@ export const config = {
     "/register",
     "/forgot-password",
     "/reset-password",
+    "/pricing",
     "/dashboard",
     "/dashboard/:path*",
     "/collection",

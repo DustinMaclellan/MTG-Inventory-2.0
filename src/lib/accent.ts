@@ -17,7 +17,14 @@ export function isAccent(value: unknown): value is AccentName {
   return ACCENTS.includes(value as AccentName);
 }
 
-const BRAND_LOCKED_PATHS = ["/", "/login", "/register", "/forgot-password", "/reset-password"] as const;
+const BRAND_LOCKED_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/pricing",
+] as const;
 
 export function isBrandLockedPath(pathname: string | null | undefined) {
   return pathname != null && BRAND_LOCKED_PATHS.includes(pathname as (typeof BRAND_LOCKED_PATHS)[number]);

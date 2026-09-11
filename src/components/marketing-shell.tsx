@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { LandingAccentLock } from "@/components/landing-accent-lock";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { getRequestMessages } from "@/i18n/request";
 import { getCurrentUser } from "@/lib/auth";
@@ -15,6 +16,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
 
   return (
     <div className="min-h-screen">
+      <LandingAccentLock />
       <header className="sticky top-0 z-20 border-b border-white/6 bg-[#080a0d]/88 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
           <Link href="/" className="flex items-center gap-3 group">

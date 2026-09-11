@@ -35,7 +35,7 @@ Stored on `User`:
 | `lotsPerPage` | Collection list page size (`25`, `50`, or `100`) |
 | `defaultCondition` | Pre-selected condition on Add Cards |
 
-Accent CSS variables live on `<html data-accent>`. Gains stay emerald and losses stay rose regardless of theme. The homepage and auth pages (`/`, `/login`, `/register`, `/forgot-password`, `/reset-password`) always render the default emerald brand, even if the collector has another accent saved.
+Accent CSS variables live on `<html data-accent>`. Gains stay emerald and losses stay rose regardless of theme. The homepage, pricing, and auth pages (`/`, `/pricing`, `/login`, `/register`, `/forgot-password`, `/reset-password`) always render the default emerald brand, even if the collector has another accent saved.
 
 ## Pricing
 
