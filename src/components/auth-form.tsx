@@ -7,6 +7,7 @@ import type { FormState } from "@/app/actions";
 import { interpolate } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
 import { TRIAL_DAYS } from "@/lib/constants";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export function AuthForm({
   action,
@@ -51,11 +52,12 @@ export function AuthForm({
         <input
           name="password"
           type="password"
-          minLength={10}
+          minLength={registering ? PASSWORD_MIN_LENGTH : 1}
+          maxLength={PASSWORD_MAX_LENGTH}
           autoComplete={registering ? "new-password" : "current-password"}
           required
           className="field mt-1.5"
-          placeholder={registering ? m.auth.passwordHint : ""}
+          placeholder={registering ? interpolate(m.auth.passwordHint, { count: PASSWORD_MIN_LENGTH }) : ""}
         />
       </label>
 

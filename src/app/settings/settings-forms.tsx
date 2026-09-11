@@ -7,7 +7,9 @@ import {
   updateProfileAction,
   type FormState,
 } from "@/app/actions";
+import { interpolate } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 function FormAlert({ state }: { state: FormState }) {
   if (state.error) {
@@ -113,11 +115,11 @@ export function PasswordForm() {
           name="password"
           type="password"
           required
-          minLength={10}
-          maxLength={128}
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
           autoComplete="new-password"
           className="field mt-1.5"
-          placeholder={m.settings.passwordPlaceholder}
+          placeholder={interpolate(m.settings.passwordPlaceholder, { count: PASSWORD_MIN_LENGTH })}
         />
       </label>
       <FormAlert state={state} />

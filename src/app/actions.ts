@@ -18,11 +18,17 @@ import {
 import { appUrl } from "@/lib/app-url";
 import { persistLocaleCookie } from "@/i18n/cookie";
 import { isLocale } from "@/i18n/config";
-import { getMessages } from "@/i18n";
+import { getMessages, interpolate, type Messages } from "@/i18n";
 import { getRequestLocale } from "@/i18n/request";
 import { SESSION_COOKIE, trialEndsAtFrom } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
+import {
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+  validateNewPassword,
+  type NewPasswordIssue,
+} from "@/lib/password";
 import { clientIpFrom, rateLimit } from "@/lib/rate-limit";
 import { getStripe } from "@/lib/stripe";
 import { coerceFinish } from "@/lib/finish";
@@ -64,17 +70,33 @@ async function enforceAuthRateLimit(email: string) {
   return byIp.ok && byEmail.ok;
 }
 
-const credentialsSchema = z.object({
+function newPasswordMessage(m: Messages, issue: NewPasswordIssue) {
+  if (issue === "length") {
+    return interpolate(m.errors.passwordLength, { count: PASSWORD_MIN_LENGTH });
+  }
+  if (issue === "classes") return m.errors.passwordClasses;
+  if (issue === "common") return m.errors.passwordCommon;
+  if (issue === "personal") return m.errors.passwordPersonal;
+  return m.errors.passwordRepeat;
+}
+
+const loginSchema = z.object({
   email: z.email().trim().toLowerCase(),
-  password: z.string().min(10).max(128),
+  password: z.string().min(1).max(PASSWORD_MAX_LENGTH),
 });
 
 export async function registerAction(_: FormState, formData: FormData): Promise<FormState> {
   const m = await t();
-  const parsed = credentialsSchema
-    .extend({ displayName: z.string().trim().min(2).max(60) })
+  const parsed = z
+    .object({
+      displayName: z.string().trim().min(2).max(60),
+      email: z.email().trim().toLowerCase(),
+      password: z.string().max(PASSWORD_MAX_LENGTH),
+    })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: m.errors.registerInvalid };
+  const passwordIssue = validateNewPassword(parsed.data.password, parsed.data.email);
+  if (passwordIssue) return { error: newPasswordMessage(m, passwordIssue) };
   if (!(await enforceAuthRateLimit(parsed.data.email))) {
     return { error: m.errors.tooMany };
   }
@@ -105,7 +127,7 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
 
 export async function loginAction(_: FormState, formData: FormData): Promise<FormState> {
   const m = await t();
-  const parsed = credentialsSchema.safeParse(Object.fromEntries(formData));
+  const parsed = loginSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: m.errors.invalidAuth };
   if (!(await enforceAuthRateLimit(parsed.data.email))) {
     return { error: m.errors.tooMany };
@@ -155,18 +177,25 @@ export async function resetPasswordAction(_: FormState, formData: FormData): Pro
   const parsed = z
     .object({
       token: z.string().min(20),
-      password: z.string().min(10).max(128),
+      password: z.string().max(PASSWORD_MAX_LENGTH),
     })
     .safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: (await t()).errors.resetPassword };
+
+  const m = await t();
+  const passwordIssue = validateNewPassword(parsed.data.password);
+  if (passwordIssue) return { error: newPasswordMessage(m, passwordIssue) };
 
   const record = await db.passwordResetToken.findUnique({
     where: { tokenHash: hashToken(parsed.data.token) },
     include: { user: true },
   });
   if (!record || record.expiresAt <= new Date()) {
-    return { error: (await t()).errors.resetExpired };
+    return { error: m.errors.resetExpired };
   }
+
+  const personalIssue = validateNewPassword(parsed.data.password, record.user.email);
+  if (personalIssue) return { error: newPasswordMessage(m, personalIssue) };
 
   await db.$transaction([
     db.user.update({
@@ -235,16 +264,22 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
 
 export async function changePasswordAction(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
+  const m = await t();
   const parsed = z
     .object({
-      currentPassword: z.string().min(1).max(128),
-      password: z.string().min(10).max(128),
+      currentPassword: z.string().min(1).max(PASSWORD_MAX_LENGTH),
+      password: z.string().max(PASSWORD_MAX_LENGTH),
     })
     .safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: (await t()).errors.passwordLength };
+  if (!parsed.success) {
+    return { error: interpolate(m.errors.passwordLength, { count: PASSWORD_MIN_LENGTH }) };
+  }
+
+  const passwordIssue = validateNewPassword(parsed.data.password, user.email);
+  if (passwordIssue) return { error: newPasswordMessage(m, passwordIssue) };
 
   if (!(await enforceAuthRateLimit(user.email))) {
-    return { error: (await t()).errors.tooMany };
+    return { error: m.errors.tooMany };
   }
 
   const fresh = await db.user.findUnique({ where: { id: user.id } });

@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import type { FormState } from "@/app/actions";
+import { interpolate } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
 
 export function ResetPasswordForm({
   action,
@@ -35,10 +37,12 @@ export function ResetPasswordForm({
         <input
           name="password"
           type="password"
-          minLength={10}
+          minLength={PASSWORD_MIN_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
           autoComplete="new-password"
           required
           className="field mt-2"
+          placeholder={interpolate(m.settings.passwordPlaceholder, { count: PASSWORD_MIN_LENGTH })}
         />
       </label>
       {state.error && (
