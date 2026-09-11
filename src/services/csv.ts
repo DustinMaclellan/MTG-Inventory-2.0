@@ -70,7 +70,7 @@ export type CsvParseResult = {
   invalid: Array<{ row: number; reason: ImportInvalidReason; line?: string }>;
 };
 
-function csvInvalidReason(path: string | number | undefined): ImportInvalidReason {
+function csvInvalidReason(path: PropertyKey | undefined): ImportInvalidReason {
   if (path === "quantity" || path === "purchase_price") return "quantity";
   if (path === "card_name") return "emptyName";
   return "unreadable";
