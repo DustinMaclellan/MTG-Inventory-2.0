@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Boxes, Download, Trash2 } from "lucide-react";
+import { Boxes, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getMessages, interpolate, isLocale, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
@@ -110,15 +110,6 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </div>
               {deck.notes && (
                 <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-500">{deck.notes}</p>
-              )}
-              {deck.cards.length > 0 && (
-                <a
-                  href={`/api/export?deck=${deck.id}`}
-                  className="mt-4 inline-flex items-center gap-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-                >
-                  <Download size={15} />
-                  {m.common.exportCsv}
-                </a>
               )}
             </div>
 

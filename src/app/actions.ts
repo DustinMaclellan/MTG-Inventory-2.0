@@ -333,6 +333,67 @@ export async function deleteInventoryAction(formData: FormData) {
   });
   revalidatePath("/dashboard");
   revalidatePath("/collection");
+  revalidatePath("/storage");
+  if (formData.get("returnTo") === "/collection") redirect("/collection");
+}
+
+const updateInventorySchema = z.object({
+  itemId: z.string().cuid(),
+  quantity: z.coerce.number().int().min(1).max(9999),
+  condition: z.enum(Condition),
+  finish: z.enum(Finish),
+  purchasePrice: z.preprocess(
+    (value) => (value === "" || value == null ? null : value),
+    z.union([z.null(), z.coerce.number().nonnegative().max(1_000_000)]),
+  ),
+  purchaseCurrency: z.enum(Currency),
+  purchaseDate: z.preprocess(
+    (value) => (value === "" || value == null ? null : value),
+    z.union([z.null(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
+  ),
+  purchaseSource: z.string().trim().max(120).optional(),
+  storageLocation: z.string().trim().max(120).optional(),
+  notes: z.string().trim().max(1000).optional(),
+  language: z.string().trim().min(2).max(8),
+});
+
+export async function updateInventoryAction(_: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireEntitlement();
+  const parsed = updateInventorySchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: (await t()).collection.invalidLot };
+
+  const item = await db.inventoryItem.findFirst({
+    where: { id: parsed.data.itemId, collection: { userId: user.id } },
+    select: { id: true, cardPrinting: { select: { finishes: true } } },
+  });
+  if (!item) return { error: (await t()).collection.invalidLot };
+  if (!item.cardPrinting.finishes.includes(parsed.data.finish) && item.cardPrinting.finishes.length > 0) {
+    return { error: (await t()).collection.finishUnavailable };
+  }
+
+  await db.inventoryItem.update({
+    where: { id: item.id },
+    data: {
+      quantity: parsed.data.quantity,
+      condition: parsed.data.condition,
+      finish: parsed.data.finish,
+      purchasePrice: parsed.data.purchasePrice,
+      purchaseCurrency: parsed.data.purchaseCurrency,
+      purchaseDate: parsed.data.purchaseDate
+        ? new Date(`${parsed.data.purchaseDate}T12:00:00.000Z`)
+        : null,
+      purchaseSource: parsed.data.purchaseSource || null,
+      storageLocation: parsed.data.storageLocation || null,
+      notes: parsed.data.notes || null,
+      language: parsed.data.language,
+    },
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath("/collection");
+  revalidatePath(`/collection/${item.id}`);
+  revalidatePath("/storage");
+  return { notice: (await t()).collection.lotSaved };
 }
 
 const bulkUpdateSchema = z.object({

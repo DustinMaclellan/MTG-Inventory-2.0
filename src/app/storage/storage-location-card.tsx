@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ArrowUpRight, Download, Inbox, MapPin, Pencil } from "lucide-react";
+import { ArrowUpRight, Inbox, MapPin, Pencil } from "lucide-react";
 import {
   renameStorageLocationAction,
   type RenameStorageState,
@@ -21,10 +21,6 @@ export type StorageCardLocation = {
 
 function collectionHref(name: string) {
   return `/collection?storage=${encodeURIComponent(name === "Unassigned" ? "unassigned" : name)}`;
-}
-
-function exportHref(name: string) {
-  return `/api/export?storage=${encodeURIComponent(name === "Unassigned" ? "unassigned" : name)}`;
 }
 
 export function StorageLocationCard({ location }: { location: StorageCardLocation }) {
@@ -116,13 +112,6 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
           </p>
         </div>
       </Link>
-      <a
-        href={exportHref(location.name)}
-        className="mt-3 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-      >
-        <Download size={12} />
-        {m.common.exportCsv}
-      </a>
     </article>
   );
 }

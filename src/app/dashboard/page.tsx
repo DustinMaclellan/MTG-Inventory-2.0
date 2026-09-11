@@ -119,8 +119,9 @@ export default async function DashboardPage() {
             {items.length ? (
               <div className="divide-y divide-white/5">
                 {items.slice(0, 6).map((item) => (
-                  <div
+                  <Link
                     key={item.id}
+                    href={`/collection/${item.id}`}
                     className="grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3.5 hover:bg-white/[.015] transition-colors"
                   >
                     <div className="min-w-0">
@@ -133,7 +134,7 @@ export default async function DashboardPage() {
                     <span className="shrink-0 rounded-lg border border-white/6 bg-white/4 px-2.5 py-1 text-xs font-medium text-zinc-400">
                       × {item.quantity}
                     </span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -148,7 +149,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             {mostValuable ? (
-              <div className="flex gap-4 p-5">
+              <Link href={`/collection/${mostValuable.item.id}`} className="flex gap-4 p-5 hover:bg-white/[.015] transition-colors">
                 {mostValuable.item.cardPrinting.imageSmallUrl && (
                   <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-lg">
                     <Image
@@ -178,7 +179,7 @@ export default async function DashboardPage() {
                     {formatMoney(mostValuable.value, currency, locale)}
                   </p>
                 </div>
-              </div>
+              </Link>
             ) : (
               <p className="px-5 py-8 text-sm leading-6 text-zinc-500">
                 {m.dashboard.largestEmpty}

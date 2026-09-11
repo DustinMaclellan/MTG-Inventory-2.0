@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Trash2, X } from "lucide-react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Pencil, Trash2, X } from "lucide-react";
 import {
   bulkDeleteInventoryAction,
   bulkUpdateInventoryAction,
@@ -53,13 +53,6 @@ function itemMarket(item: CollectionRow) {
   return item.cardPrinting.currentPrices.find((p) => p.finish === item.finish)?.market ?? null;
 }
 
-function buildStorageHref(storage: string, currentQ: string) {
-  const s = new URLSearchParams();
-  if (currentQ) s.set("q", currentQ);
-  s.set("storage", storage);
-  return `/collection?${s.toString()}`;
-}
-
 // ─── Table ─────────────────────────────────────────────────
 export function CollectionTable({
   items,
@@ -81,6 +74,11 @@ export function CollectionTable({
 
   const allChecked = items.length > 0 && selected.size === items.length;
   const someChecked = selected.size > 0 && !allChecked;
+  const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someChecked;
+  }, [someChecked]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -141,9 +139,9 @@ export function CollectionTable({
             <tr>
               <th className="px-4 py-3 w-10">
                 <input
+                  ref={selectAllRef}
                   type="checkbox"
                   checked={allChecked}
-                  ref={(el) => { if (el) el.indeterminate = someChecked; }}
                   onChange={toggleAll}
                   className="accent-emerald-400 cursor-pointer"
                   aria-label={m.collection.selectAll}
@@ -189,14 +187,17 @@ export function CollectionTable({
                       className="accent-emerald-400 cursor-pointer" />
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <Link
+                      href={`/collection/${item.id}`}
+                      className="flex items-center gap-3 hover:text-emerald-300 transition-colors"
+                    >
                       <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded bg-zinc-900">
                         {item.cardPrinting.imageSmallUrl && (
                           <Image src={item.cardPrinting.imageSmallUrl} alt="" fill sizes="40px" className="object-cover" />
                         )}
                       </div>
                       <span className="max-w-52 truncate font-medium">{item.cardPrinting.name}</span>
-                    </div>
+                    </Link>
                   </td>
                   <td className="px-4 py-3 text-sm text-zinc-400">
                     {item.cardPrinting.set.code.toUpperCase()} · #{item.cardPrinting.collectorNumber}
@@ -217,20 +218,34 @@ export function CollectionTable({
                   </td>
                   <td className="max-w-36 truncate px-4 py-3 text-xs text-zinc-500">
                     {item.storageLocation ? (
-                      <Link href={buildStorageHref(item.storageLocation, currentQ)}
-                        className="hover:text-emerald-400 transition-colors">
+                      <Link
+                        href={`/collection?${new URLSearchParams({
+                          ...(currentQ ? { q: currentQ } : {}),
+                          storage: item.storageLocation,
+                        }).toString()}`}
+                        className="hover:text-emerald-400 transition-colors"
+                      >
                         {item.storageLocation}
                       </Link>
                     ) : "—"}
                   </td>
                   <td className="px-4 py-3">
-                    <form action={deleteInventoryAction}>
-                      <input type="hidden" name="itemId" value={item.id} />
-                      <button title={m.collection.deleteLot}
-                        className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors">
-                        <Trash2 size={15} />
-                      </button>
-                    </form>
+                    <div className="flex items-center justify-end">
+                      <Link
+                        href={`/collection/${item.id}`}
+                        title={m.collection.editLot}
+                        className="rounded-lg p-2 text-zinc-700 hover:bg-white/6 hover:text-zinc-200 transition-colors"
+                      >
+                        <Pencil size={15} />
+                      </Link>
+                      <form action={deleteInventoryAction}>
+                        <input type="hidden" name="itemId" value={item.id} />
+                        <button title={m.collection.deleteLot}
+                          className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors">
+                          <Trash2 size={15} />
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               );

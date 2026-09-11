@@ -135,6 +135,45 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
   };
 }
 
+export async function getInventoryLot(id: string) {
+  const user = await requireEntitlement();
+  await healUnsupportedInventoryFinishes(user.id);
+  const fx = await displayFx(user.preferredCurrency);
+  const [item, storageLocations] = await Promise.all([
+    db.inventoryItem.findFirst({
+      where: { id, collection: { userId: user.id } },
+      include: {
+        cardPrinting: {
+          include: {
+            set: true,
+            currentPrices: {
+              where: scryfallPriceWhere(user.preferredCurrency),
+            },
+          },
+        },
+      },
+    }),
+    db.inventoryItem.findMany({
+      where: {
+        collection: { userId: user.id },
+        storageLocation: { not: null },
+      },
+      distinct: ["storageLocation"],
+      select: { storageLocation: true },
+      orderBy: { storageLocation: "asc" },
+    }),
+  ]);
+  if (!item) return null;
+
+  return {
+    user,
+    item: withDisplayFx([item], fx)[0],
+    storageLocations: storageLocations
+      .map((entry) => entry.storageLocation)
+      .filter((value): value is string => Boolean(value)),
+  };
+}
+
 export async function getStorageOverview() {
   const user = await requireEntitlement();
   await healUnsupportedInventoryFinishes(user.id);
