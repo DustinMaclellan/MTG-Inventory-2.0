@@ -62,7 +62,7 @@ export async function openBillingPortalAction(
   }
   const session = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
-    return_url: `${appUrl()}/settings`,
+    return_url: `${appUrl()}/settings/billing`,
   });
   redirect(session.url);
 }

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import type { User } from "@prisma/client";
-import { LogOut, Settings, Sparkles } from "lucide-react";
+import { LogOut, Sparkles } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { getMessages, isLocale, pickPlural } from "@/i18n";
 import { trialBannerDaysRemaining } from "@/lib/entitlements";
 import { MobileNav, NavLinks } from "@/components/nav-links";
+import { SettingsAppLink } from "@/components/settings-nav";
 
 export function AppShell({
   children,
@@ -42,9 +43,7 @@ export function AppShell({
         <NavLinks />
 
         <div className="mt-auto pt-4 border-t border-white/6">
-          <Link href="/settings" className="nav-link">
-            <Settings size={17} /> {m.nav.settings}
-          </Link>
+          <SettingsAppLink label={m.nav.settings} />
           <form action={logoutAction}>
             <button className="nav-link w-full text-left">
               <LogOut size={17} /> {m.nav.signOut}

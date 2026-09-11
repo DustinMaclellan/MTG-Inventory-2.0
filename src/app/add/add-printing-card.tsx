@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import type { Currency, Finish } from "@prisma/client";
+import type { Condition, Currency, Finish } from "@prisma/client";
 import { addInventoryAction } from "@/app/actions";
 import { useI18n } from "@/i18n/provider";
 import { formatMoney } from "@/lib/money";
@@ -34,6 +34,7 @@ export function AddPrintingCard({
   prices,
   currency,
   query,
+  defaultCondition,
 }: {
   printingId: string;
   name: string;
@@ -46,6 +47,7 @@ export function AddPrintingCard({
   prices: PricePoint[];
   currency: Currency;
   query: string;
+  defaultCondition: Condition;
 }) {
   const { locale, m } = useI18n();
   const finishOptions = finishes.length > 0 ? finishes : (["NONFOIL"] as Finish[]);
@@ -136,7 +138,7 @@ export function AddPrintingCard({
           <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
             {m.add.condition}
           </span>
-          <select className="field min-w-0 px-3 py-2 pr-8 text-sm" name="condition" defaultValue="NEAR_MINT">
+          <select className="field min-w-0 px-3 py-2 pr-8 text-sm" name="condition" defaultValue={defaultCondition}>
             <option value="NEAR_MINT">{m.condition.NEAR_MINT}</option>
             <option value="LIGHTLY_PLAYED">{m.condition.LIGHTLY_PLAYED}</option>
             <option value="MODERATELY_PLAYED">{m.condition.MODERATELY_PLAYED}</option>

@@ -64,6 +64,8 @@ model User {
   preferredCurrency    Currency           @default(USD)
   preferredLocale      AppLocale          @default(en)
   preferredAccent      AccentTheme        @default(emerald)
+  lotsPerPage          Int                @default(25)
+  defaultCondition     Condition          @default(NEAR_MINT)
   trialEndsAt          DateTime
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique

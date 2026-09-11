@@ -42,6 +42,8 @@ export type FormState = {
   notice?: string;
   devResetUrl?: string;
   preferredCurrency?: Currency;
+  lotsPerPage?: number;
+  defaultCondition?: Condition;
 };
 
 async function t() {
@@ -266,7 +268,7 @@ export async function updateProfileAction(_: FormState, formData: FormData): Pro
     where: { id: user.id },
     data: { displayName: parsed.data.displayName },
   });
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   revalidatePath("/dashboard");
   return { notice: (await t()).settings.nameSaved };
 }
@@ -274,22 +276,37 @@ export async function updateProfileAction(_: FormState, formData: FormData): Pro
 export async function updatePreferencesAction(_: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const parsed = z
-    .object({ preferredCurrency: z.enum(Currency) })
-    .safeParse({ preferredCurrency: formData.get("preferredCurrency") });
-  if (!parsed.success) return { error: (await t()).errors.currency };
+    .object({
+      preferredCurrency: z.enum(Currency),
+      lotsPerPage: z.coerce.number().pipe(z.union([z.literal(25), z.literal(50), z.literal(100)])),
+      defaultCondition: z.enum(Condition),
+    })
+    .safeParse({
+      preferredCurrency: formData.get("preferredCurrency"),
+      lotsPerPage: formData.get("lotsPerPage"),
+      defaultCondition: formData.get("defaultCondition"),
+    });
+  if (!parsed.success) return { error: (await t()).errors.preferences };
 
   await db.user.update({
     where: { id: user.id },
-    data: { preferredCurrency: parsed.data.preferredCurrency },
+    data: {
+      preferredCurrency: parsed.data.preferredCurrency,
+      lotsPerPage: parsed.data.lotsPerPage,
+      defaultCondition: parsed.data.defaultCondition,
+    },
   });
   revalidatePath("/", "layout");
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   revalidatePath("/dashboard");
   revalidatePath("/collection");
   revalidatePath("/storage");
+  revalidatePath("/add");
   return {
-    notice: (await t()).settings.currencySaved,
+    notice: (await t()).settings.collectionSaved,
     preferredCurrency: parsed.data.preferredCurrency,
+    lotsPerPage: parsed.data.lotsPerPage,
+    defaultCondition: parsed.data.defaultCondition,
   };
 }
 
@@ -335,7 +352,7 @@ export async function changePasswordAction(_: FormState, formData: FormData): Pr
     }),
   ]);
 
-  revalidatePath("/settings");
+  revalidatePath("/settings", "layout");
   return { notice: "Password updated. Other signed-in sessions were signed out." };
 }
 

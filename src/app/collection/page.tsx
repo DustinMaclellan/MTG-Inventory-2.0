@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { CollectionTable, type CollectionRow } from "@/components/collection-table";
 import { getMessages, interpolate, isLocale, pickPlural } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
+import { lotsPerPageFor } from "@/lib/collection-prefs";
 import { usdFx } from "@/lib/fx";
 import { redirect } from "next/navigation";
 import { getInventory, getInventoryLotPage } from "@/services/inventory";
@@ -108,15 +109,16 @@ export default async function CollectionPage({
   const finish = params.finish?.trim() ?? "";
   const lotId = params.lot?.trim() ?? "";
 
+  const pageSize = lotsPerPageFor(user.lotsPerPage);
   const filtersActive = Boolean(q || storage || condition || finish);
   if (lotId) {
-    const lotPage = await getInventoryLotPage(lotId, 25);
+    const lotPage = await getInventoryLotPage(lotId, pageSize);
     if (lotPage && (lotPage !== page || filtersActive)) {
       redirect(buildCollectionHref({ page: lotPage, lot: lotId }));
     }
   }
 
-  const { items, total, pageSize, storageLocations } = await getInventory(page, 25, {
+  const { items, total, storageLocations } = await getInventory(page, pageSize, {
     q, storage, condition, finish,
   });
   const fx = await usdFx();

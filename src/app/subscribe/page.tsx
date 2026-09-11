@@ -60,7 +60,7 @@ export default async function SubscribePage() {
 
         <p className="mt-6 text-center text-sm text-zinc-600">
           {m.subscribe.already}{" "}
-          <Link href="/settings" className="font-medium text-accent hover:text-accent-hover transition-colors">
+          <Link href="/settings/billing" className="font-medium text-accent hover:text-accent-hover transition-colors">
             {m.subscribe.manage}
           </Link>
         </p>

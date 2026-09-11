@@ -83,6 +83,7 @@ export default async function AddCardsPage({
               finishes={printing.finishes}
               currency={currency}
               query={query}
+              defaultCondition={user.defaultCondition}
               prices={pricesFromPrinting(
                 printing.currentPrices,
                 printing.rawPrices,

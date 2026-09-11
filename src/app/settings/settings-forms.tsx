@@ -9,7 +9,9 @@ import {
 } from "@/app/actions";
 import { interpolate } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
+import { LOTS_PER_PAGE } from "@/lib/collection-prefs";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/lib/password";
+import type { Condition, Currency } from "@prisma/client";
 
 function FormAlert({ state }: { state: FormState }) {
   if (state.error) {
@@ -60,14 +62,26 @@ export function ProfileForm({ displayName, email }: { displayName: string; email
   );
 }
 
-export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" }) {
+export function PreferencesForm({
+  currency,
+  lotsPerPage,
+  defaultCondition,
+}: {
+  currency: Currency;
+  lotsPerPage: number;
+  defaultCondition: Condition;
+}) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updatePreferencesAction, {});
   const [selected, setSelected] = useState(currency);
+  const [pageSize, setPageSize] = useState(lotsPerPage);
+  const [condition, setCondition] = useState(defaultCondition);
   const { m } = useI18n();
 
   useEffect(() => {
     if (state.preferredCurrency) setSelected(state.preferredCurrency);
-  }, [state.preferredCurrency]);
+    if (state.lotsPerPage) setPageSize(state.lotsPerPage);
+    if (state.defaultCondition) setCondition(state.defaultCondition);
+  }, [state.preferredCurrency, state.lotsPerPage, state.defaultCondition]);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -79,7 +93,7 @@ export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" 
           name="preferredCurrency"
           value={selected}
           onChange={(event) =>
-            setSelected(event.target.value as "USD" | "CAD" | "EUR")
+            setSelected(event.target.value as Currency)
           }
           className="field mt-1.5 pl-3 pr-8"
         >
@@ -89,9 +103,45 @@ export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" 
         </select>
       </label>
       <p className="text-xs leading-5 text-zinc-600">{m.settings.currencyHint}</p>
+      <label className="block max-w-xs">
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {m.settings.lotsPerPage}
+        </span>
+        <select
+          name="lotsPerPage"
+          value={pageSize}
+          onChange={(event) => setPageSize(Number(event.target.value))}
+          className="field mt-1.5 pl-3 pr-8"
+        >
+          {LOTS_PER_PAGE.map((count) => (
+            <option key={count} value={count}>
+              {interpolate(m.settings.lotsPerPageN, { count })}
+            </option>
+          ))}
+        </select>
+      </label>
+      <p className="text-xs leading-5 text-zinc-600">{m.settings.lotsPerPageHint}</p>
+      <label className="block max-w-xs">
+        <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+          {m.settings.defaultCondition}
+        </span>
+        <select
+          name="defaultCondition"
+          value={condition}
+          onChange={(event) => setCondition(event.target.value as Condition)}
+          className="field mt-1.5 pl-3 pr-8"
+        >
+          <option value="NEAR_MINT">{m.condition.NEAR_MINT}</option>
+          <option value="LIGHTLY_PLAYED">{m.condition.LIGHTLY_PLAYED}</option>
+          <option value="MODERATELY_PLAYED">{m.condition.MODERATELY_PLAYED}</option>
+          <option value="HEAVILY_PLAYED">{m.condition.HEAVILY_PLAYED}</option>
+          <option value="DAMAGED">{m.condition.DAMAGED}</option>
+        </select>
+      </label>
+      <p className="text-xs leading-5 text-zinc-600">{m.settings.defaultConditionHint}</p>
       <FormAlert state={state} />
       <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
-        {pending ? m.common.saving : m.settings.saveCurrency}
+        {pending ? m.common.saving : m.settings.saveCollection}
       </button>
     </form>
   );

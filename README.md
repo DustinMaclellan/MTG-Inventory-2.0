@@ -2,7 +2,11 @@
 
 Private Magic: The Gathering collection manager. Track exact Scryfall printings, market value, storage locations, and decks. New accounts get a 14-day free trial, then one paid plan.
 
+Live: [https://mystic-ledger.vercel.app](https://mystic-ledger.vercel.app)
+
 **Stack:** Next.js 16 · PostgreSQL · Prisma · Scryfall prices · Stripe billing · English / French
+
+The brand name **Mystic Ledger** is not translated.
 
 ---
 
@@ -33,21 +37,27 @@ Stripe and Resend are optional for local inventory work. Checkout and password-r
 
 ## What you can do
 
-- Public landing, pricing, terms, and privacy pages (English or French)
-- Register / sign in (private inventory per account) with a 14-day trial
+- Public landing, pricing, terms, and privacy (English or French). Landing and sign-in stay on the default green brand color.
+- Register / sign in (private inventory per account) with a 14-day trial. New passwords need 14 characters, a letter, and a number.
 - Search exact Scryfall printings and add lots (qty, finish, condition, paid price, storage)
-- Browse the collection with search, filters, sort, and bulk edit / delete
+- Browse the collection with search, filters, sort, pagination, and bulk edit / delete
 - Track storage by binder, box, or shelf
-- Dashboard with market value, cost basis, unrealized gain, recently added, and largest position
-- Deck builder with owned vs missing per printing
-- CSV import (with review) and export for the full collection, one binder, or one deck
-- Settings: display name, English/French, USD / CAD / EUR, password, account deletion
+- Dashboard with market value, cost basis, unrealized gain, recently added, and the three largest positions (opens that lot in the collection list)
+- Deck builder with owned vs missing per printing and finish
+- CSV import (with review) and export for the full collection, one binder, or one deck (Moxfield, Archidekt, ManaBox, and others)
+- Settings in four sections:
+  - **Profile** — display name
+  - **Preferences** — language, accent color, display currency, lots per page, default condition when adding cards
+  - **Billing** — trial / plan and Stripe portal
+  - **Security** — password and account deletion
 - Subscribe through Stripe Checkout; manage billing in the Stripe Customer Portal
 - Reset a forgotten password
 
 Analytics and Transactions are listed in the app as coming later. They are not live.
 
 Prices come from Scryfall and are stored locally. The browser never calls Scryfall.
+
+Accent color changes buttons, navigation, and highlights inside the app. Unrealized gains stay green and losses stay red. The public homepage and sign-in pages always use the default emerald brand.
 
 ---
 
@@ -59,7 +69,8 @@ Scryfall publishes **USD** and **EUR**. Those values are saved when a printing i
 - **Catalog job** (`/api/cron/catalog-sync` at 06:30 UTC) adds the newest paper printings. A full catalog comes from Scryfall’s **default_cards** bulk file via `npm run catalog:sync`
 - Add Cards searches the local catalog (no live Scryfall call once the bulk file is imported)
 - Opening the dashboard does **not** call Scryfall; it reads stored prices
-- **CAD** uses Scryfall USD converted at the ECB USD/CAD rate (Frankfurter). If that rate is unavailable, CAD falls back to the USD amount
+- **CAD market** uses Scryfall USD converted at the ECB USD/CAD rate (Frankfurter). If that rate is unavailable, CAD falls back to the USD amount
+- **Paid amounts** convert to the collector’s display currency using the current USD exchange rate (USD, CAD, or EUR)
 
 Scryfall itself updates TCGPlayer / Cardmarket prices about once a day, so collection value tracks Scryfall, not a live exchange.
 
@@ -135,4 +146,4 @@ Hobby Vercel cron jobs are capped at 60 seconds. Owned-price refresh is sized fo
 
 Recommended list price: **$8/month** or **$72/year**. Change the amounts in the Stripe Dashboard; the marketing copy lives in `src/lib/constants.ts`.
 
-More detail on architecture and identity rules: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+More detail on data identity, preferences, and security: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
