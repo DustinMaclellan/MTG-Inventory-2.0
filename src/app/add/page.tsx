@@ -3,17 +3,27 @@ import { CheckCircle2, Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getMessages, interpolate, isLocale } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
+import { lotsPerPageFor } from "@/lib/collection-prefs";
 import { displayFx, storedMarketCurrency } from "@/lib/pricing";
-import { pricesFromPrinting, searchCatalog } from "@/services/catalog";
+import { pricesFromPrinting, searchCatalogPage } from "@/services/catalog";
 import { AddPrintingCard } from "./add-printing-card";
 
 export const metadata = { title: "Add cards" };
 export const maxDuration = 60;
 
+function buildAddHref(params: { q: string; page?: number; added?: boolean }) {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.page && params.page > 1) search.set("page", String(params.page));
+  if (params.added) search.set("added", "1");
+  const query = search.toString();
+  return query ? `/add?${query}` : "/add";
+}
+
 export default async function AddCardsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; added?: string }>;
+  searchParams: Promise<{ q?: string; added?: string; page?: string }>;
 }) {
   const user = await requireEntitlement();
   const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
@@ -21,7 +31,12 @@ export default async function AddCardsPage({
   const params = await searchParams;
   const query = params.q?.trim() ?? "";
   const justAdded = params.added === "1";
-  const results = query.length >= 2 ? await searchCatalog(query) : [];
+  const pageSize = lotsPerPageFor(user.lotsPerPage);
+  const parsedPage = Number(params.page ?? "1");
+  const page = Number.isInteger(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const { items: results, total } =
+    query.length >= 2 ? await searchCatalogPage(query, page, pageSize) : { items: [], total: 0 };
+  const pages = Math.max(1, Math.ceil(total / pageSize));
   const currency = user.preferredCurrency;
   const fx = await displayFx(currency);
   const storedCurrency = storedMarketCurrency(currency);
@@ -66,7 +81,7 @@ export default async function AddCardsPage({
 
         {query && (
           <p className="my-5 text-sm text-zinc-500">
-            {interpolate(m.add.results, { count: results.length, query })}
+            {interpolate(m.add.results, { count: total, query })}
           </p>
         )}
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -83,6 +98,7 @@ export default async function AddCardsPage({
               finishes={printing.finishes}
               currency={currency}
               query={query}
+              page={page}
               defaultCondition={user.defaultCondition}
               prices={pricesFromPrinting(
                 printing.currentPrices,
@@ -93,6 +109,30 @@ export default async function AddCardsPage({
             />
           ))}
         </div>
+
+        {query && pages > 1 && (
+          <nav className="mt-5 flex justify-end gap-2 text-sm">
+            {page > 1 && (
+              <Link
+                className="panel px-4 py-2 hover:bg-white/4 transition-colors"
+                href={buildAddHref({ q: query, page: page - 1, added: justAdded })}
+              >
+                {m.common.previous}
+              </Link>
+            )}
+            <span className="px-3 py-2 text-zinc-500">
+              {interpolate(m.common.pageOf, { page, pages })}
+            </span>
+            {page < pages && (
+              <Link
+                className="panel px-4 py-2 hover:bg-white/4 transition-colors"
+                href={buildAddHref({ q: query, page: page + 1, added: justAdded })}
+              >
+                {m.common.next}
+              </Link>
+            )}
+          </nav>
+        )}
       </div>
     </AppShell>
   );

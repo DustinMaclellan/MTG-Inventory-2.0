@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState } from "react";
 import {
   changePasswordAction,
   updatePreferencesAction,
@@ -72,29 +72,29 @@ export function PreferencesForm({
   defaultCondition: Condition;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updatePreferencesAction, {});
-  const [selected, setSelected] = useState(currency);
-  const [pageSize, setPageSize] = useState(lotsPerPage);
-  const [condition, setCondition] = useState(defaultCondition);
   const { m } = useI18n();
 
-  useEffect(() => {
-    if (state.preferredCurrency) setSelected(state.preferredCurrency);
-    if (state.lotsPerPage) setPageSize(state.lotsPerPage);
-    if (state.defaultCondition) setCondition(state.defaultCondition);
-  }, [state.preferredCurrency, state.lotsPerPage, state.defaultCondition]);
-
   return (
-    <form action={formAction} className="space-y-5">
-      <label className="block max-w-xs">
+    <form
+      className="space-y-5"
+      autoComplete="off"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        startTransition(() => {
+          formAction(formData);
+        });
+      }}
+    >
+      <label className="block max-w-xs" htmlFor="settings-preferred-currency">
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
           {m.settings.displayCurrency}
         </span>
         <select
+          id="settings-preferred-currency"
           name="preferredCurrency"
-          value={selected}
-          onChange={(event) =>
-            setSelected(event.target.value as Currency)
-          }
+          defaultValue={currency}
+          autoComplete="off"
           className="field mt-1.5 pl-3 pr-8"
         >
           <option value="USD">USD — US Dollar</option>
@@ -103,14 +103,15 @@ export function PreferencesForm({
         </select>
       </label>
       <p className="text-xs leading-5 text-zinc-600">{m.settings.currencyHint}</p>
-      <label className="block max-w-xs">
+      <label className="block max-w-xs" htmlFor="settings-lots-per-page">
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
           {m.settings.lotsPerPage}
         </span>
         <select
+          id="settings-lots-per-page"
           name="lotsPerPage"
-          value={pageSize}
-          onChange={(event) => setPageSize(Number(event.target.value))}
+          defaultValue={lotsPerPage}
+          autoComplete="off"
           className="field mt-1.5 pl-3 pr-8"
         >
           {LOTS_PER_PAGE.map((count) => (
@@ -121,14 +122,15 @@ export function PreferencesForm({
         </select>
       </label>
       <p className="text-xs leading-5 text-zinc-600">{m.settings.lotsPerPageHint}</p>
-      <label className="block max-w-xs">
+      <label className="block max-w-xs" htmlFor="settings-default-condition">
         <span className="text-xs font-medium uppercase tracking-wider text-zinc-500">
           {m.settings.defaultCondition}
         </span>
         <select
+          id="settings-default-condition"
           name="defaultCondition"
-          value={condition}
-          onChange={(event) => setCondition(event.target.value as Condition)}
+          defaultValue={defaultCondition}
+          autoComplete="off"
           className="field mt-1.5 pl-3 pr-8"
         >
           <option value="NEAR_MINT">{m.condition.NEAR_MINT}</option>

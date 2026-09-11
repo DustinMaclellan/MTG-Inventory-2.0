@@ -379,7 +379,7 @@ export const en = {
     currencySaved: "Currency saved.",
     lotsPerPage: "Lots per page",
     lotsPerPageN: "{count} lots",
-    lotsPerPageHint: "How many lots the collection list shows at once.",
+    lotsPerPageHint: "How many lots and card search results to show at once.",
     defaultCondition: "Default condition",
     defaultConditionHint: "Pre-selected when you add a card.",
     saveCollection: "Save collection preferences",

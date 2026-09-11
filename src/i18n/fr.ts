@@ -381,7 +381,7 @@ export const fr = {
     currencySaved: "Devise enregistrée. Les valeurs utilisent maintenant les prix Scryfall dans cette devise.",
     lotsPerPage: "Lots par page",
     lotsPerPageN: "{count} lots",
-    lotsPerPageHint: "Nombre de lots affichés à la fois dans la collection.",
+    lotsPerPageHint: "Nombre de lots et de résultats de recherche affichés à la fois.",
     defaultCondition: "État par défaut",
     defaultConditionHint: "Présélectionné quand vous ajoutez une carte.",
     saveCollection: "Enregistrer les préférences de collection",

@@ -139,6 +139,8 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
         passwordHash: await hashPassword(parsed.data.password),
         trialEndsAt: trialEndsAtFrom(),
         preferredLocale: locale,
+        preferredCurrency: Currency.USD,
+        defaultCondition: Condition.NEAR_MINT,
         ...(accent ? { preferredAccent: accent } : {}),
       },
     });
@@ -297,11 +299,11 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
     },
   });
   revalidatePath("/", "layout");
-  revalidatePath("/settings", "layout");
   revalidatePath("/dashboard");
   revalidatePath("/collection");
   revalidatePath("/storage");
   revalidatePath("/add");
+  revalidatePath("/decks");
   return {
     notice: (await t()).settings.collectionSaved,
     preferredCurrency: parsed.data.preferredCurrency,
@@ -367,6 +369,10 @@ const inventorySchema = z.object({
   ),
   storageLocation: z.string().trim().max(120).optional(),
   returnQuery: z.string().trim().max(200).optional(),
+  returnPage: z.preprocess(
+    (value) => (value === "" || value === undefined ? undefined : value),
+    z.coerce.number().int().min(1).max(999).optional(),
+  ),
 });
 
 export async function addInventoryAction(formData: FormData) {
@@ -405,6 +411,9 @@ export async function addInventoryAction(formData: FormData) {
 
   const params = new URLSearchParams({ added: "1" });
   if (parsed.data.returnQuery) params.set("q", parsed.data.returnQuery);
+  if (parsed.data.returnPage && parsed.data.returnPage > 1) {
+    params.set("page", String(parsed.data.returnPage));
+  }
   redirect(`/add?${params.toString()}`);
 }
 

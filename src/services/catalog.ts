@@ -111,27 +111,18 @@ async function backfillFromScryfall(parts: CatalogSearchParts) {
   await ingestPaperPrintings(remote);
 }
 
-async function localExact(name: string) {
-  const cards = await db.card.findMany({
-    where: { normalizedName: name.toLocaleLowerCase() },
-    select: { id: true },
-    take: 8,
-  });
-  if (cards.length === 0) return [];
-  return db.cardPrinting.findMany({
-    where: { digital: false, cardId: { in: cards.map((card) => card.id) } },
-    include: printingInclude,
-    orderBy: { releasedAt: "desc" },
-    take: EXACT_TAKE,
-  });
-}
+type CatalogSearchPlan = {
+  where: Prisma.CardPrintingWhereInput;
+  orderBy: Prisma.CardPrintingOrderByWithRelationInput | Prisma.CardPrintingOrderByWithRelationInput[];
+  defaultTake: number;
+};
 
-export async function searchCatalog(rawQuery: string) {
+async function prepareCatalogSearch(rawQuery: string): Promise<CatalogSearchPlan | null> {
   const query = rawQuery.trim();
-  if (query.length < 2) return [];
+  if (query.length < 2) return null;
 
   const parts = await resolveSearchParts(query);
-  if (!parts.name && !parts.setCode && !parts.collectorNumber) return [];
+  if (!parts.name && !parts.setCode && !parts.collectorNumber) return null;
 
   if (!(await catalogIsComplete())) {
     try {
@@ -142,14 +133,51 @@ export async function searchCatalog(rawQuery: string) {
   }
 
   if (parts.name && !parts.setCode && !parts.collectorNumber) {
-    const exact = await localExact(parts.name);
-    if (exact.length > 0) return exact;
+    const cards = await db.card.findMany({
+      where: { normalizedName: parts.name.toLocaleLowerCase() },
+      select: { id: true },
+      take: 8,
+    });
+    if (cards.length > 0) {
+      return {
+        where: { digital: false, cardId: { in: cards.map((card) => card.id) } },
+        orderBy: { releasedAt: "desc" },
+        defaultTake: EXACT_TAKE,
+      };
+    }
   }
 
-  return db.cardPrinting.findMany({
+  return {
     where: printingWhere(parts),
-    include: printingInclude,
     orderBy: [{ name: "asc" }, { releasedAt: "desc" }],
-    take: parts.name && (parts.setCode || parts.collectorNumber) ? EXACT_TAKE : FUZZY_TAKE,
+    defaultTake: parts.name && (parts.setCode || parts.collectorNumber) ? EXACT_TAKE : FUZZY_TAKE,
+  };
+}
+
+export async function searchCatalog(rawQuery: string) {
+  const plan = await prepareCatalogSearch(rawQuery);
+  if (!plan) return [];
+  return db.cardPrinting.findMany({
+    where: plan.where,
+    include: printingInclude,
+    orderBy: plan.orderBy,
+    take: plan.defaultTake,
   });
+}
+
+export async function searchCatalogPage(rawQuery: string, page: number, pageSize: number) {
+  const plan = await prepareCatalogSearch(rawQuery);
+  if (!plan) return { items: [], total: 0 };
+  const skip = (Math.max(1, page) - 1) * pageSize;
+  const [items, total] = await Promise.all([
+    db.cardPrinting.findMany({
+      where: plan.where,
+      include: printingInclude,
+      orderBy: plan.orderBy,
+      skip,
+      take: pageSize,
+    }),
+    db.cardPrinting.count({ where: plan.where }),
+  ]);
+  return { items, total };
 }

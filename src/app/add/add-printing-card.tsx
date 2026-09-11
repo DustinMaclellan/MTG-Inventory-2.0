@@ -34,6 +34,7 @@ export function AddPrintingCard({
   prices,
   currency,
   query,
+  page = 1,
   defaultCondition,
 }: {
   printingId: string;
@@ -47,6 +48,7 @@ export function AddPrintingCard({
   prices: PricePoint[];
   currency: Currency;
   query: string;
+  page?: number;
   defaultCondition: Condition;
 }) {
   const { locale, m } = useI18n();
@@ -92,6 +94,7 @@ export function AddPrintingCard({
       >
         <input type="hidden" name="cardPrintingId" value={printingId} />
         <input type="hidden" name="returnQuery" value={query} />
+        {page > 1 ? <input type="hidden" name="returnPage" value={page} /> : null}
 
         <label className="flex min-w-0 flex-col gap-1.5">
           <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
