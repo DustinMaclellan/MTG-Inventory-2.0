@@ -1,4 +1,5 @@
 import type { SubscriptionStatus } from "@prisma/client";
+import { TRIAL_BANNER_DAYS } from "./constants";
 
 export type EntitlementUser = {
   trialEndsAt: Date;
@@ -32,5 +33,11 @@ export function trialDaysRemaining(user: EntitlementUser) {
   const ms = user.trialEndsAt.getTime() - Date.now();
   if (ms <= 0) return null;
   return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+export function trialBannerDaysRemaining(user: EntitlementUser) {
+  const days = trialDaysRemaining(user);
+  if (days == null || days > TRIAL_BANNER_DAYS) return null;
+  return days;
 }
 

@@ -1,4 +1,6 @@
 export const TRIAL_DAYS = 14;
+/** Only nag in the chrome once the trial is actually ending. */
+export const TRIAL_BANNER_DAYS = 3;
 export const PLAN_NAME = "Mystic Ledger Pro";
 export const PLAN_MONTHLY_USD = 8;
 export const PLAN_YEARLY_USD = 72;

@@ -3,7 +3,7 @@ import type { User } from "@prisma/client";
 import { LogOut, Settings, Sparkles } from "lucide-react";
 import { logoutAction } from "@/app/actions";
 import { getMessages, isLocale, pickPlural } from "@/i18n";
-import { trialDaysRemaining } from "@/lib/entitlements";
+import { trialBannerDaysRemaining } from "@/lib/entitlements";
 import { MobileNav, NavLinks } from "@/components/nav-links";
 
 export function AppShell({
@@ -15,7 +15,7 @@ export function AppShell({
 }) {
   const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
   const m = getMessages(locale);
-  const daysLeft = trialDaysRemaining(user);
+  const daysLeft = trialBannerDaysRemaining(user);
 
   const initials = user.displayName
     .split(" ")

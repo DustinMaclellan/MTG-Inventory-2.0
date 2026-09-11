@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasEntitlement, hasPaidAccess, trialDaysRemaining } from "./entitlements";
+import { hasEntitlement, hasPaidAccess, trialBannerDaysRemaining, trialDaysRemaining } from "./entitlements";
 
 function user(
   overrides: Partial<{
@@ -82,5 +82,23 @@ describe("trialDaysRemaining", () => {
       user({ trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 3_600_000) }),
     );
     expect(days).toBe(4);
+  });
+});
+
+describe("trialBannerDaysRemaining", () => {
+  it("stays quiet while most of the trial is still left", () => {
+    expect(
+      trialBannerDaysRemaining(
+        user({ trialEndsAt: new Date(Date.now() + 13 * 24 * 60 * 60 * 1000) }),
+      ),
+    ).toBeNull();
+  });
+
+  it("shows the chrome banner in the last three days", () => {
+    expect(
+      trialBannerDaysRemaining(
+        user({ trialEndsAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000 + 3_600_000) }),
+      ),
+    ).toBe(3);
   });
 });
