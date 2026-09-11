@@ -23,15 +23,16 @@ const securityHeaders = [
       "default-src 'self'",
       // Next.js 16 requires 'unsafe-inline' and 'unsafe-eval' for its runtime
       // hydration. Remove them only if you later adopt nonce-based CSP.
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
       // Tailwind's utility classes are injected as inline styles.
       "style-src 'self' 'unsafe-inline'",
       // next/font/google self-hosts font files at build time — no external CDN needed.
       "font-src 'self'",
       // Card images are served directly from the Scryfall CDN.
       "img-src 'self' https://cards.scryfall.io data: blob:",
-      // API calls are same-origin only.
-      "connect-src 'self'",
+      // Same-origin APIs. Speed Insights uses first-party /_vercel routes in
+      // production; locally it posts vitals to Vercel.
+      "connect-src 'self' https://vitals.vercel-insights.com",
       // Stripe Checkout hosted page is a redirect, not an iframe — no frame-src needed.
       "frame-src 'none'",
       // Belt-and-suspenders clickjacking block (more reliable than X-Frame-Options).

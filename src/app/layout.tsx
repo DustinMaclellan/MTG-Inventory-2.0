@@ -1,3 +1,4 @@
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleProvider } from "@/i18n/provider";
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     >
       <body className="min-h-full">
         <LocaleProvider locale={locale}>{children}</LocaleProvider>
+        <SpeedInsights />
       </body>
     </html>
   );
