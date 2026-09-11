@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePortfolio } from "./money";
+import { calculatePortfolio, convertMoney, toDisplayPaid } from "./money";
 
 describe("calculatePortfolio", () => {
   it("calculates quantity-weighted value, cost, and gain", () => {
@@ -33,5 +33,34 @@ describe("calculatePortfolio", () => {
     expect(() =>
       calculatePortfolio([{ quantity: -1, purchasePrice: null, marketPrice: null }]),
     ).toThrow("Quantity");
+  });
+});
+
+describe("convertMoney", () => {
+  const fx = { cad: 1.4, eur: 0.9 };
+
+  it("leaves the amount alone when currencies match", () => {
+    expect(convertMoney(10, "USD", "USD", fx)).toBe(10);
+  });
+
+  it("converts USD into CAD and back", () => {
+    expect(convertMoney(10, "USD", "CAD", fx)).toBeCloseTo(14);
+    expect(convertMoney(14, "CAD", "USD", fx)).toBeCloseTo(10);
+  });
+
+  it("converts EUR into CAD through USD", () => {
+    expect(convertMoney(9, "EUR", "CAD", fx)).toBeCloseTo(14);
+  });
+});
+
+describe("toDisplayPaid", () => {
+  const fx = { cad: 1.4, eur: 0.9 };
+
+  it("returns null when the lot has no paid price", () => {
+    expect(toDisplayPaid(null, "USD", "CAD", fx)).toBeNull();
+  });
+
+  it("converts a USD paid price into CAD for display", () => {
+    expect(toDisplayPaid(10, "USD", "CAD", fx)).toBeCloseTo(14);
   });
 });

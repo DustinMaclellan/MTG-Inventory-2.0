@@ -345,10 +345,10 @@ export const en = {
     saveName: "Save name",
     nameSaved: "Name saved.",
     collection: "Collection",
-    collectionBody: "How market values are shown across the app.",
+    collectionBody: "How market and paid values are shown across the app.",
     displayCurrency: "Display currency",
     currencyHint:
-      "Dashboard, collection, and storage use Scryfall market prices in this currency. There is no conversion — if a printing has no price in that currency, it shows as unavailable.",
+      "Market and paid values are shown in this currency. CAD market is converted from USD. Paid amounts convert using the current USD exchange rate.",
     saveCurrency: "Save currency",
     currencySaved: "Currency saved. Values now use Scryfall prices in that currency.",
     billing: "Billing",

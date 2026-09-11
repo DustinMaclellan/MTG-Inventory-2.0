@@ -346,7 +346,7 @@ export async function addInventoryAction(formData: FormData) {
       condition: parsed.data.condition,
       finish: parsed.data.finish,
       purchasePrice: parsed.data.purchasePrice,
-      purchaseCurrency: Currency.USD,
+      purchaseCurrency: user.preferredCurrency,
       storageLocation: parsed.data.storageLocation || null,
     },
   });
@@ -657,6 +657,7 @@ export async function commitImportAction(formData: FormData) {
           finish: row.finish,
           language: row.language,
           purchasePrice: row.purchasePrice,
+          purchaseCurrency: user.preferredCurrency,
           storageLocation: row.storageLocation || null,
         },
       }),

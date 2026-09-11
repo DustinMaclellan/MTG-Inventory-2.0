@@ -9,6 +9,8 @@ import {
   type ExportFormat,
   type ExportRow,
 } from "@/lib/export-formats";
+import { usdFx } from "@/lib/fx";
+import { toDisplayPaid } from "@/lib/money";
 import { displayFx, marketForFinish, scryfallPriceWhere, storedMarketCurrency } from "@/lib/pricing";
 
 export function parseExportFormat(raw: string | null): ExportFormat {
@@ -44,6 +46,7 @@ export async function exportInventoryCsv(
   if (storage.length > 120) return new Response("Invalid storage location.", { status: 400 });
   const fx = await displayFx(currency);
   const storedCurrency = storedMarketCurrency(currency);
+  const rates = await usdFx();
 
   const items = await db.inventoryItem.findMany({
     where: {
@@ -87,7 +90,14 @@ export async function exportInventoryCsv(
       condition: item.condition,
       finish: item.finish,
       language: item.language,
-      purchasePrice: item.purchasePrice?.toString() ?? null,
+      purchasePrice: money(
+        toDisplayPaid(
+          item.purchasePrice?.toNumber() ?? null,
+          item.purchaseCurrency,
+          currency,
+          rates,
+        ),
+      ),
       marketPrice: money(market),
       currentValue: money(market == null ? null : market * item.quantity),
       storageLocation: item.storageLocation,

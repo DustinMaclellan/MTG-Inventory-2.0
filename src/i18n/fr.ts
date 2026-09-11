@@ -347,10 +347,10 @@ export const fr = {
     saveName: "Enregistrer le nom",
     nameSaved: "Nom enregistré.",
     collection: "Collection",
-    collectionBody: "Comment les valeurs de marché sont affichées dans l’application.",
+    collectionBody: "Comment les valeurs de marché et payées sont affichées dans l’application.",
     displayCurrency: "Devise d’affichage",
     currencyHint:
-      "Le tableau de bord, la collection et le rangement utilisent les prix Scryfall dans cette devise. Il n’y a pas de conversion — si une impression n’a pas de prix dans cette devise, elle s’affiche comme indisponible.",
+      "Les valeurs de marché et payées s’affichent dans cette devise. Le marché CAD est converti depuis l’USD. Les montants payés sont convertis avec le taux USD du moment.",
     saveCurrency: "Enregistrer la devise",
     currencySaved: "Devise enregistrée. Les valeurs utilisent maintenant les prix Scryfall dans cette devise.",
     billing: "Facturation",

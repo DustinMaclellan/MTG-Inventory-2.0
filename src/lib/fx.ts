@@ -1,16 +1,26 @@
-const FALLBACK_USD_CAD = 1;
+import type { UsdFx } from "./money";
 
-export async function usdCadRate(): Promise<number> {
+const FALLBACK: UsdFx = { cad: 1, eur: 1 };
+
+export async function usdFx(): Promise<UsdFx> {
   try {
-    const response = await fetch("https://api.frankfurter.app/latest?from=USD&to=CAD", {
+    const response = await fetch("https://api.frankfurter.app/latest?from=USD&to=CAD,EUR", {
       headers: { "User-Agent": "MysticLedger/1.0 (collection manager)" },
       next: { revalidate: 43_200 },
     });
-    if (!response.ok) return FALLBACK_USD_CAD;
-    const data = (await response.json()) as { rates?: { CAD?: number } };
-    const rate = data.rates?.CAD;
-    return typeof rate === "number" && Number.isFinite(rate) && rate > 0 ? rate : FALLBACK_USD_CAD;
+    if (!response.ok) return FALLBACK;
+    const data = (await response.json()) as { rates?: { CAD?: number; EUR?: number } };
+    const cad = data.rates?.CAD;
+    const eur = data.rates?.EUR;
+    return {
+      cad: typeof cad === "number" && Number.isFinite(cad) && cad > 0 ? cad : FALLBACK.cad,
+      eur: typeof eur === "number" && Number.isFinite(eur) && eur > 0 ? eur : FALLBACK.eur,
+    };
   } catch {
-    return FALLBACK_USD_CAD;
+    return FALLBACK;
   }
+}
+
+export async function usdCadRate(): Promise<number> {
+  return (await usdFx()).cad;
 }

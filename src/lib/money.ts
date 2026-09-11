@@ -1,3 +1,5 @@
+import type { AppLocale } from "@/i18n/config";
+
 export type ValuationLine = {
   quantity: number;
   purchasePrice: number | null;
@@ -42,11 +44,40 @@ export function calculatePortfolio(lines: ValuationLine[]): PortfolioTotals {
   };
 }
 
-import type { AppLocale } from "@/i18n/config";
+export type DisplayCurrency = "USD" | "CAD" | "EUR";
+
+/** USD→CAD and USD→EUR multipliers. */
+export type UsdFx = { cad: number; eur: number };
+
+export function convertMoney(
+  amount: number,
+  from: DisplayCurrency,
+  to: DisplayCurrency,
+  fx: UsdFx,
+): number {
+  if (from === to) return amount;
+  const cad = fx.cad > 0 ? fx.cad : 1;
+  const eur = fx.eur > 0 ? fx.eur : 1;
+  const usd =
+    from === "USD" ? amount : from === "CAD" ? amount / cad : amount / eur;
+  if (to === "USD") return usd;
+  if (to === "CAD") return usd * cad;
+  return usd * eur;
+}
+
+export function toDisplayPaid(
+  amount: number | null,
+  from: DisplayCurrency,
+  to: DisplayCurrency,
+  fx: UsdFx,
+): number | null {
+  if (amount == null) return null;
+  return convertMoney(amount, from, to, fx);
+}
 
 export function formatMoney(
   value: number | null,
-  currency: "USD" | "CAD" | "EUR" = "USD",
+  currency: DisplayCurrency = "USD",
   locale: AppLocale = "en",
 ) {
   if (value === null) return "—";

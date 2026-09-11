@@ -5,6 +5,7 @@ import { AppShell } from "@/components/app-shell";
 import { CollectionTable, type CollectionRow } from "@/components/collection-table";
 import { getMessages, interpolate, isLocale, pickPlural } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
+import { usdFx } from "@/lib/fx";
 import { getInventory, getInventoryLot } from "@/services/inventory";
 
 export const metadata = { title: "Collection" };
@@ -108,6 +109,7 @@ export default async function CollectionPage({
   const { items, total, pageSize, storageLocations } = await getInventory(page, 25, {
     q, storage, condition, finish,
   });
+  const fx = await usdFx();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = Boolean(q || storage || condition || finish);
   const rows = items.map(toCollectionRow);
@@ -192,6 +194,7 @@ export default async function CollectionPage({
         <CollectionTable
           items={rows}
           currency={user.preferredCurrency}
+          fx={fx}
           filtersActive={filtersActive}
           currentQ={q}
           storageLocations={storageLocations}

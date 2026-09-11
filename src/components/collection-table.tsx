@@ -14,7 +14,7 @@ import type { BulkUpdateState } from "@/app/actions";
 import type { Condition, Currency, Finish } from "@prisma/client";
 import { interpolate, pickPlural } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, toDisplayPaid, type UsdFx } from "@/lib/money";
 import { LotEditorDialog } from "@/components/lot-editor-dialog";
 
 // ─── Types ─────────────────────────────────────────────────
@@ -60,10 +60,15 @@ function itemMarket(item: CollectionRow) {
   return item.cardPrinting.currentPrices.find((p) => p.finish === item.finish)?.market ?? null;
 }
 
+function itemPaid(item: CollectionRow, currency: Currency, fx: UsdFx) {
+  return toDisplayPaid(item.purchasePrice, item.purchaseCurrency, currency, fx);
+}
+
 // ─── Table ─────────────────────────────────────────────────
 export function CollectionTable({
   items,
   currency,
+  fx,
   filtersActive,
   currentQ,
   storageLocations,
@@ -73,6 +78,7 @@ export function CollectionTable({
 }: {
   items: CollectionRow[];
   currency: Currency;
+  fx: UsdFx;
   filtersActive: boolean;
   currentQ: string;
   storageLocations: string[];
@@ -131,7 +137,7 @@ export function CollectionTable({
         case "qty":       av = a.quantity;             bv = b.quantity;             break;
         case "condition": av = a.condition;            bv = b.condition;            break;
         case "finish":    av = a.finish;               bv = b.finish;               break;
-        case "paid":      av = a.purchasePrice ?? -1;  bv = b.purchasePrice ?? -1;  break;
+        case "paid":      av = itemPaid(a, currency, fx) ?? -1;  bv = itemPaid(b, currency, fx) ?? -1;  break;
         case "market":    av = itemMarket(a) ?? -1;   bv = itemMarket(b) ?? -1;   break;
         case "value": {
           const am = itemMarket(a); const bm = itemMarket(b);
@@ -144,7 +150,7 @@ export function CollectionTable({
       if (av === null || av < bv!) return sortDir === "asc" ? -1 : 1;
       return sortDir === "asc" ? 1 : -1;
     });
-  }, [items, sortKey, sortDir]);
+  }, [items, sortKey, sortDir, currency, fx]);
 
   const cols: { label: string; key: SortKey }[] = [
     { label: m.collection.qty, key: "qty" },
@@ -236,7 +242,7 @@ export function CollectionTable({
                   <td className="px-4 py-3 text-xs text-zinc-400">
                     {m.finish[item.finish]}
                   </td>
-                  <td className="px-4 py-3 text-sm">{formatMoney(item.purchasePrice, item.purchaseCurrency, locale)}</td>
+                  <td className="px-4 py-3 text-sm">{formatMoney(itemPaid(item, currency, fx), currency, locale)}</td>
                   <td className="px-4 py-3 text-sm">{formatMoney(market, currency, locale)}</td>
                   <td className="px-4 py-3 text-sm font-medium">
                     {formatMoney(market === null ? null : market * item.quantity, currency, locale)}

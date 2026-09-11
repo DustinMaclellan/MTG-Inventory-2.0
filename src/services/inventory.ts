@@ -4,7 +4,8 @@ import { Condition, Currency, Finish, Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { coerceFinish } from "@/lib/finish";
-import { calculatePortfolio } from "@/lib/money";
+import { usdFx } from "@/lib/fx";
+import { calculatePortfolio, toDisplayPaid } from "@/lib/money";
 import { displayFx, marketForFinish, scryfallPriceWhere, storedMarketCurrency } from "@/lib/pricing";
 
 export type InventoryFilters = {
@@ -320,10 +321,16 @@ export async function getDashboard() {
     .flatMap((item) => item.cardPrinting.currentPrices)
     .sort((a, b) => b.retrievedAt.getTime() - a.retrievedAt.getTime())[0]?.retrievedAt;
   const items = withLotMarkets(pricedItems, storedCurrency, fx);
+  const rates = await usdFx();
 
   const lines = items.map((item) => ({
     quantity: item.quantity,
-    purchasePrice: item.purchasePrice?.toNumber() ?? null,
+    purchasePrice: toDisplayPaid(
+      item.purchasePrice?.toNumber() ?? null,
+      item.purchaseCurrency,
+      user.preferredCurrency,
+      rates,
+    ),
     marketPrice: numericMarket(
       item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
     ),
