@@ -24,7 +24,7 @@ export default async function DashboardPage() {
   const user = await requireEntitlement();
   const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
   const m = getMessages(locale);
-  const { items, totals, uniqueCards, mostValuable, lastPriceUpdate } = await getDashboard();
+  const { items, totals, uniqueCards, largestPositions, lastPriceUpdate } = await getDashboard();
   const currency = user.preferredCurrency;
   const gainPositive = totals.unrealizedGain !== null && totals.unrealizedGain >= 0;
 
@@ -108,7 +108,9 @@ export default async function DashboardPage() {
         <section className="mt-5 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
           <article className="panel overflow-hidden">
             <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
-              <h2 className="text-sm font-semibold">{m.dashboard.recentlyAdded}</h2>
+              <h2 className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
+                {m.dashboard.recentlyAdded}
+              </h2>
               <Link
                 href="/collection"
                 className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
@@ -142,44 +144,48 @@ export default async function DashboardPage() {
             )}
           </article>
 
-          <article className="panel overflow-hidden">
-            <div className="border-b border-white/6 px-5 py-4">
+          <article className="panel flex h-full flex-col overflow-hidden">
+            <div className="shrink-0 border-b border-white/6 px-5 py-4">
               <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
                 {m.dashboard.largestPosition}
               </p>
             </div>
-            {mostValuable ? (
-              <Link href={`/collection?lot=${mostValuable.item.id}`} className="flex gap-4 p-5 hover:bg-white/[.015] transition-colors">
-                {mostValuable.item.cardPrinting.imageSmallUrl && (
-                  <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-lg">
-                    <Image
-                      src={mostValuable.item.cardPrinting.imageSmallUrl}
-                      alt={mostValuable.item.cardPrinting.name}
-                      fill
-                      sizes="80px"
-                      className="object-cover"
-                    />
-                  </div>
-                )}
-                <div className="min-w-0 flex flex-col justify-between">
-                  <div>
-                    <h2 className="font-semibold leading-tight">
-                      {mostValuable.item.cardPrinting.name}
-                    </h2>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      {mostValuable.item.cardPrinting.set.name}
+            {largestPositions.length ? (
+              <div className="flex min-h-0 flex-1 flex-col divide-y divide-white/5">
+                {largestPositions.map(({ item, value }) => (
+                  <Link
+                    key={item.id}
+                    href={`/collection?lot=${item.id}`}
+                    className="flex min-h-0 flex-1 items-center gap-3.5 px-5 py-3 hover:bg-white/[.015] transition-colors"
+                  >
+                    {item.cardPrinting.imageSmallUrl && (
+                      <div className="relative h-[4.75rem] w-[3.4rem] shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-md">
+                        <Image
+                          src={item.cardPrinting.imageSmallUrl}
+                          alt={item.cardPrinting.name}
+                          fill
+                          sizes="54px"
+                          className="object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{item.cardPrinting.name}</p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-500">
+                        {item.cardPrinting.set.name}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-600">
+                        {item.quantity}{" "}
+                        {item.quantity === 1 ? m.dashboard.copy : m.dashboard.copies} ·{" "}
+                        {m.finish[item.finish]}
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-sm font-semibold tracking-tight">
+                      {formatMoney(value, currency, locale)}
                     </p>
-                    <p className="mt-1 text-xs text-zinc-600">
-                      {mostValuable.item.quantity}{" "}
-                      {mostValuable.item.quantity === 1 ? m.dashboard.copy : m.dashboard.copies} ·{" "}
-                      {m.finish[mostValuable.item.finish]}
-                    </p>
-                  </div>
-                  <p className="mt-4 text-2xl font-semibold tracking-tight">
-                    {formatMoney(mostValuable.value, currency, locale)}
-                  </p>
-                </div>
-              </Link>
+                  </Link>
+                ))}
+              </div>
             ) : (
               <p className="px-5 py-8 text-sm leading-6 text-zinc-500">
                 {m.dashboard.largestEmpty}

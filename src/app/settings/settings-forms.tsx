@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   changePasswordAction,
   updatePreferencesAction,
@@ -62,7 +62,12 @@ export function ProfileForm({ displayName, email }: { displayName: string; email
 
 export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(updatePreferencesAction, {});
+  const [selected, setSelected] = useState(currency);
   const { m } = useI18n();
+
+  useEffect(() => {
+    if (state.preferredCurrency) setSelected(state.preferredCurrency);
+  }, [state.preferredCurrency]);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -72,7 +77,10 @@ export function PreferencesForm({ currency }: { currency: "USD" | "CAD" | "EUR" 
         </span>
         <select
           name="preferredCurrency"
-          defaultValue={currency}
+          value={selected}
+          onChange={(event) =>
+            setSelected(event.target.value as "USD" | "CAD" | "EUR")
+          }
           className="field mt-1.5 pl-3 pr-8"
         >
           <option value="USD">USD — US Dollar</option>

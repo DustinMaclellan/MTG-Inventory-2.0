@@ -30,7 +30,7 @@ export default async function AddCardsPage({
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <header className="mb-8">
-          <p className="text-sm text-emerald-400">{m.add.eyebrow}</p>
+          <p className="text-sm text-zinc-500">{m.add.eyebrow}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{m.add.title}</h1>
           <p className="mt-2 text-sm text-zinc-500">{m.add.intro}</p>
         </header>

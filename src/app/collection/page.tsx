@@ -6,12 +6,13 @@ import { CollectionTable, type CollectionRow } from "@/components/collection-tab
 import { getMessages, interpolate, isLocale, pickPlural } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { usdFx } from "@/lib/fx";
-import { getInventory, getInventoryLot } from "@/services/inventory";
+import { redirect } from "next/navigation";
+import { getInventory, getInventoryLotPage } from "@/services/inventory";
 
 export const metadata = { title: "Collection" };
 
 function buildCollectionHref(params: {
-  page?: number; q?: string; storage?: string; condition?: string; finish?: string;
+  page?: number; q?: string; storage?: string; condition?: string; finish?: string; lot?: string;
 }) {
   const search = new URLSearchParams();
   if (params.q) search.set("q", params.q);
@@ -19,6 +20,7 @@ function buildCollectionHref(params: {
   if (params.condition) search.set("condition", params.condition);
   if (params.finish) search.set("finish", params.finish);
   if (params.page && params.page > 1) search.set("page", String(params.page));
+  if (params.lot) search.set("lot", params.lot);
   const query = search.toString();
   return query ? `/collection?${query}` : "/collection";
 }
@@ -106,17 +108,20 @@ export default async function CollectionPage({
   const finish = params.finish?.trim() ?? "";
   const lotId = params.lot?.trim() ?? "";
 
+  const filtersActive = Boolean(q || storage || condition || finish);
+  if (lotId) {
+    const lotPage = await getInventoryLotPage(lotId, 25);
+    if (lotPage && (lotPage !== page || filtersActive)) {
+      redirect(buildCollectionHref({ page: lotPage, lot: lotId }));
+    }
+  }
+
   const { items, total, pageSize, storageLocations } = await getInventory(page, 25, {
     q, storage, condition, finish,
   });
   const fx = await usdFx();
   const pages = Math.max(1, Math.ceil(total / pageSize));
-  const filtersActive = Boolean(q || storage || condition || finish);
   const rows = items.map(toCollectionRow);
-  const focusLot =
-    lotId && !rows.some((item) => item.id === lotId)
-      ? await getInventoryLot(lotId).then((lot) => (lot ? toCollectionRow(lot.item) : null))
-      : null;
 
   return (
     <AppShell user={user}>
@@ -200,7 +205,6 @@ export default async function CollectionPage({
           storageLocations={storageLocations}
           listHref={buildCollectionHref({ page, q, storage, condition, finish })}
           initialLotId={lotId || undefined}
-          focusLot={focusLot}
         />
 
         {pages > 1 && (

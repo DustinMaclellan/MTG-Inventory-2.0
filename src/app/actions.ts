@@ -35,7 +35,12 @@ import { coerceFinish } from "@/lib/finish";
 import { parseImportPaste } from "@/services/import-parse";
 import { resolveImportLines, type ImportChoice, type RecognizedImportRow } from "@/services/import-resolve";
 
-export type FormState = { error?: string; notice?: string; devResetUrl?: string };
+export type FormState = {
+  error?: string;
+  notice?: string;
+  devResetUrl?: string;
+  preferredCurrency?: Currency;
+};
 
 async function t() {
   return getMessages(await getRequestLocale());
@@ -255,11 +260,15 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
     where: { id: user.id },
     data: { preferredCurrency: parsed.data.preferredCurrency },
   });
+  revalidatePath("/", "layout");
   revalidatePath("/settings");
   revalidatePath("/dashboard");
   revalidatePath("/collection");
   revalidatePath("/storage");
-  return { notice: (await t()).settings.currencySaved };
+  return {
+    notice: (await t()).settings.currencySaved,
+    preferredCurrency: parsed.data.preferredCurrency,
+  };
 }
 
 export async function changePasswordAction(_: FormState, formData: FormData): Promise<FormState> {

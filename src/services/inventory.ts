@@ -130,7 +130,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -154,6 +154,30 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
       .map((entry) => entry.storageLocation)
       .filter((value): value is string => Boolean(value)),
   };
+}
+
+export async function getInventoryLotPage(lotId: string, pageSize = 25, filters: InventoryFilters = {}) {
+  const user = await requireEntitlement();
+  const lot = await db.inventoryItem.findFirst({
+    where: { id: lotId, collection: { userId: user.id } },
+    select: { id: true, createdAt: true },
+  });
+  if (!lot) return null;
+
+  const where = inventoryWhere(user.id, filters);
+  const inView = await db.inventoryItem.count({ where: { ...where, id: lotId } });
+  if (!inView) return null;
+
+  const ahead = await db.inventoryItem.count({
+    where: {
+      ...where,
+      OR: [
+        { createdAt: { gt: lot.createdAt } },
+        { createdAt: lot.createdAt, id: { gt: lot.id } },
+      ],
+    },
+  });
+  return Math.floor(ahead / pageSize) + 1;
 }
 
 export async function getInventoryLot(id: string) {
@@ -337,22 +361,23 @@ export async function getDashboard() {
   }));
   const totals = calculatePortfolio(lines);
   const uniqueCards = new Set(items.map((item) => item.cardPrinting.cardId)).size;
-  const mostValuable = [...items]
+  const largestPositions = [...items]
     .map((item) => {
       const price = numericMarket(
         item.cardPrinting.currentPrices.find((entry) => entry.finish === item.finish)?.market,
       );
       return { item, price, value: price === null ? null : price * item.quantity };
     })
-    .filter((entry) => entry.value !== null)
-    .sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
+    .filter((entry): entry is typeof entry & { value: number } => entry.value !== null)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
 
   return {
     user,
     items,
     totals,
     uniqueCards,
-    mostValuable,
+    largestPositions,
     lastPriceUpdate,
   };
 }

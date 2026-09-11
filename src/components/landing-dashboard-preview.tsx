@@ -4,13 +4,32 @@ import { dateLocale, interpolate, type Messages } from "@/i18n";
 import type { AppLocale } from "@/i18n/config";
 import { formatMoney } from "@/lib/money";
 
-const JEWELED_LOTUS = {
-  name: "Jeweled Lotus",
-  set: "Commander Masters",
-  number: "396",
-  image: "https://cards.scryfall.io/small/front/d/7/d7183700-6941-4a3d-a581-4f33bea795e9.jpg?1783915595",
-  value: 79.17,
-};
+const LARGEST = [
+  {
+    name: "Jeweled Lotus",
+    set: "Commander Masters",
+    image: "https://cards.scryfall.io/small/front/d/7/d7183700-6941-4a3d-a581-4f33bea795e9.jpg?1783915595",
+    finish: "FOIL" as const,
+    qty: 1,
+    value: 79.17,
+  },
+  {
+    name: "Rhystic Study",
+    set: "Jumpstart 2022",
+    image: "https://cards.scryfall.io/small/front/4/4/4462362d-f0a2-4318-bb9e-84936ede1f4d.jpg?1675644753",
+    finish: "NONFOIL" as const,
+    qty: 1,
+    value: 41.5,
+  },
+  {
+    name: "Marsh Flats",
+    set: "Modern Horizons 2",
+    image: "https://cards.scryfall.io/small/front/2/0/20e8c367-c1b0-4d3f-b8be-0f1e136e47c7.jpg?1626098487",
+    finish: "FOIL" as const,
+    qty: 1,
+    value: 22.4,
+  },
+];
 
 const RECENT = [
   { name: "Marsh Flats", set: "Modern Horizons 2", number: "248", finish: "FOIL" as const, qty: 1 },
@@ -85,7 +104,9 @@ export function LandingDashboardPreview({
       <section className="mt-5 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <article className="panel overflow-hidden">
           <div className="flex items-center justify-between border-b border-white/6 px-5 py-4">
-            <h2 className="text-sm font-semibold">{m.dashboard.recentlyAdded}</h2>
+            <h2 className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
+              {m.dashboard.recentlyAdded}
+            </h2>
             <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
               {m.dashboard.viewAll} <ArrowUpRight size={12} />
             </span>
@@ -110,34 +131,37 @@ export function LandingDashboardPreview({
           </div>
         </article>
 
-        <article className="panel overflow-hidden">
-          <div className="border-b border-white/6 px-5 py-4">
+        <article className="panel flex h-full flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-white/6 px-5 py-4">
             <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
               {m.dashboard.largestPosition}
             </p>
           </div>
-          <div className="flex gap-4 p-5">
-            <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-lg">
-              <Image
-                src={JEWELED_LOTUS.image}
-                alt=""
-                fill
-                sizes="80px"
-                className="object-cover"
-              />
-            </div>
-            <div className="min-w-0 flex flex-col justify-between">
-              <div>
-                <h2 className="font-semibold leading-tight">{JEWELED_LOTUS.name}</h2>
-                <p className="mt-1 text-xs text-zinc-500">{JEWELED_LOTUS.set}</p>
-                <p className="mt-1 text-xs text-zinc-600">
-                  1 {m.dashboard.copy} · {m.finish.FOIL}
+          <div className="flex min-h-0 flex-1 flex-col divide-y divide-white/5">
+            {LARGEST.map((item) => (
+              <div key={item.name} className="flex min-h-0 flex-1 items-center gap-3.5 px-5 py-3">
+                <div className="relative h-[4.75rem] w-[3.4rem] shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-md">
+                  <Image
+                    src={item.image}
+                    alt=""
+                    fill
+                    sizes="54px"
+                    className="object-cover"
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{item.name}</p>
+                  <p className="mt-0.5 truncate text-xs text-zinc-500">{item.set}</p>
+                  <p className="mt-0.5 truncate text-xs text-zinc-600">
+                    {item.qty} {item.qty === 1 ? m.dashboard.copy : m.dashboard.copies} ·{" "}
+                    {m.finish[item.finish]}
+                  </p>
+                </div>
+                <p className="shrink-0 text-sm font-semibold tracking-tight">
+                  {formatMoney(item.value, "USD", locale)}
                 </p>
               </div>
-              <p className="mt-4 text-2xl font-semibold tracking-tight">
-                {formatMoney(JEWELED_LOTUS.value, "USD", locale)}
-              </p>
-            </div>
+            ))}
           </div>
         </article>
       </section>

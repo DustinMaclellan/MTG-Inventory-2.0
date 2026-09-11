@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Pencil, Trash2, X } from "lucide-react";
 import {
@@ -74,7 +73,6 @@ export function CollectionTable({
   storageLocations,
   listHref,
   initialLotId,
-  focusLot,
 }: {
   items: CollectionRow[];
   currency: Currency;
@@ -84,21 +82,41 @@ export function CollectionTable({
   storageLocations: string[];
   listHref: string;
   initialLotId?: string;
-  focusLot?: CollectionRow | null;
 }) {
   const { locale, m } = useI18n();
-  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
-  const [editing, setEditing] = useState<CollectionRow | null>(
-    () => (initialLotId ? items.find((item) => item.id === initialLotId) ?? focusLot ?? null : null),
-  );
+  const [editing, setEditing] = useState<CollectionRow | null>(null);
+  const [focusedLotId, setFocusedLotId] = useState(initialLotId ?? null);
 
-  function closeEditor() {
+  function dismissLotEditor() {
     setEditing(null);
-    if (initialLotId) router.replace(listHref, { scroll: false });
   }
+
+  useEffect(() => {
+    if (!initialLotId) {
+      setFocusedLotId(null);
+      return;
+    }
+    setFocusedLotId(initialLotId);
+    document.getElementById(`lot-${initialLotId}`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+
+    function clearFocus() {
+      setFocusedLotId(null);
+      window.history.replaceState(null, "", listHref);
+    }
+
+    const listen = window.setTimeout(() => {
+      window.addEventListener("pointerdown", clearFocus, { once: true });
+    }, 400);
+    const expire = window.setTimeout(clearFocus, 4000);
+    return () => {
+      window.clearTimeout(listen);
+      window.clearTimeout(expire);
+      window.removeEventListener("pointerdown", clearFocus);
+    };
+  }, [initialLotId, listHref]);
 
   useEffect(() => { setSelected(new Set()); }, [items]);
 
@@ -203,10 +221,18 @@ export function CollectionTable({
             {sorted.map((item) => {
               const market = itemMarket(item);
               const isSelected = selected.has(item.id);
+              const isFocused = item.id === focusedLotId;
               return (
                 <tr
                   key={item.id}
-                  className={`transition-colors cursor-pointer ${isSelected ? "bg-emerald-400/4" : "hover:bg-white/[.018]"}`}
+                  id={`lot-${item.id}`}
+                  className={`transition-colors cursor-pointer ${
+                    isFocused
+                      ? "bg-emerald-400/8 ring-1 ring-inset ring-emerald-400/25"
+                      : isSelected
+                        ? "bg-emerald-400/4"
+                        : "hover:bg-white/[.018]"
+                  }`}
                   onClick={(e) => {
                     if ((e.target as HTMLElement).closest("button,a,form,input,select")) return;
                     toggle(item.id);
@@ -298,7 +324,7 @@ export function CollectionTable({
           storageLocations={storageLocations}
           currencies={["USD", "CAD", "EUR"]}
           displayCurrency={currency}
-          onClose={closeEditor}
+          onClose={dismissLotEditor}
         />
       )}
 

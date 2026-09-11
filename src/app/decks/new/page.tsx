@@ -13,7 +13,7 @@ export default async function NewDeckPage() {
     <AppShell user={user}>
       <div className="mx-auto max-w-lg px-5 py-8 sm:px-8 lg:py-10">
         <div className="mb-8">
-          <p className="text-sm text-emerald-400">{m.decks.builder}</p>
+          <p className="text-sm text-zinc-500">{m.decks.builder}</p>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{m.decks.newTitle}</h1>
           <p className="mt-2 text-sm text-zinc-500">{m.decks.builderIntro}</p>
         </div>
