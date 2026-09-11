@@ -267,13 +267,14 @@ model DeckCard {
   deckId          String
   cardId          String
   cardPrintingId  String?
+  finish          Finish        @default(NONFOIL)
   quantity        Int           @default(1)
   isCommanderZone Boolean       @default(false)
   deck            Deck          @relation(fields: [deckId], references: [id], onDelete: Cascade)
   card            Card          @relation(fields: [cardId], references: [id], onDelete: Restrict)
   printing        CardPrinting? @relation(fields: [cardPrintingId], references: [id], onDelete: SetNull)
 
-  @@unique([deckId, cardPrintingId])
+  @@unique([deckId, cardPrintingId, finish])
   @@index([deckId])
   @@index([cardId])
   @@index([cardPrintingId])

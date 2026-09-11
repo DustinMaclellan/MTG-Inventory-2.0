@@ -501,6 +501,43 @@ export async function renameStorageLocationAction(
   return {};
 }
 
+export type StorageFormState = { error?: string; notice?: string };
+
+export async function mergeStorageLocationsAction(
+  _: StorageFormState,
+  formData: FormData,
+): Promise<StorageFormState> {
+  const user = await requireEntitlement();
+  const m = await t();
+  const parsed = z
+    .object({
+      from: z.string().trim().min(1).max(120),
+      to: z.string().trim().min(1).max(120),
+    })
+    .safeParse({ from: formData.get("from"), to: formData.get("to") });
+  if (!parsed.success) return { error: m.storage.invalidLocation };
+
+  const from = parsed.data.from;
+  const to = parsed.data.to;
+  if (from.toLowerCase() === "unassigned" || to.toLowerCase() === "unassigned") {
+    return { error: m.storage.reservedLocation };
+  }
+  if (from.toLowerCase() === to.toLowerCase()) return { error: m.storage.mergeSame };
+
+  await db.inventoryItem.updateMany({
+    where: {
+      collection: { userId: user.id },
+      storageLocation: { equals: from, mode: "insensitive" },
+    },
+    data: { storageLocation: to },
+  });
+
+  revalidatePath("/storage");
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+  return { notice: m.storage.mergeDone };
+}
+
 export async function bulkDeleteInventoryAction(
   _: BulkUpdateState,
   formData: FormData,

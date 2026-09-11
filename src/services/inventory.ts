@@ -1,11 +1,11 @@
 import "server-only";
 
-import { Condition, Finish, Prisma } from "@prisma/client";
+import { Condition, Currency, Finish, Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { coerceFinish } from "@/lib/finish";
 import { calculatePortfolio } from "@/lib/money";
-import { displayFx, scryfallPriceWhere, toDisplayMarket } from "@/lib/pricing";
+import { displayFx, marketForFinish, scryfallPriceWhere, storedMarketCurrency } from "@/lib/pricing";
 
 export type InventoryFilters = {
   q?: string;
@@ -74,21 +74,40 @@ function inventoryWhere(userId: string, filters: InventoryFilters = {}): Prisma.
   };
 }
 
-function withDisplayFx<T extends { cardPrinting: { currentPrices: Array<{ market: Prisma.Decimal | null }> } }>(
-  items: T[],
-  fx: number,
-): T[] {
-  if (fx === 1) return items;
-  return items.map((item) => ({
-    ...item,
+function numericMarket(market: Prisma.Decimal | number | null | undefined) {
+  if (market == null) return null;
+  return typeof market === "number" ? market : market.toNumber();
+}
+
+function withLotMarkets<
+  T extends {
+    finish: Finish;
     cardPrinting: {
-      ...item.cardPrinting,
-      currentPrices: item.cardPrinting.currentPrices.map((price) => ({
-        ...price,
-        market: price.market ? price.market.times(fx) : null,
-      })),
-    },
-  }));
+      rawPrices: Prisma.JsonValue;
+      currentPrices: Array<{
+        finish: Finish;
+        currency: Currency;
+        market: Prisma.Decimal | number | null;
+      }>;
+    };
+  },
+>(items: T[], storedCurrency: Currency, fx: number): T[] {
+  return items.map((item) => {
+    const market = marketForFinish(
+      item.finish,
+      item.cardPrinting.currentPrices,
+      item.cardPrinting.rawPrices,
+      storedCurrency,
+      fx,
+    );
+    return {
+      ...item,
+      cardPrinting: {
+        ...item.cardPrinting,
+        currentPrices: [{ finish: item.finish, currency: storedCurrency, market }],
+      },
+    };
+  });
 }
 
 export async function getInventory(page = 1, pageSize = 25, filters: InventoryFilters = {}) {
@@ -96,6 +115,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
   await healUnsupportedInventoryFinishes(user.id);
   const where = inventoryWhere(user.id, filters);
   const fx = await displayFx(user.preferredCurrency);
+  const storedCurrency = storedMarketCurrency(user.preferredCurrency);
   const [items, total, storageLocations] = await db.$transaction([
     db.inventoryItem.findMany({
       where,
@@ -125,7 +145,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
     }),
   ]);
   return {
-    items: withDisplayFx(items, fx),
+    items: withLotMarkets(items, storedCurrency, fx),
     total,
     page,
     pageSize,
@@ -139,6 +159,7 @@ export async function getInventoryLot(id: string) {
   const user = await requireEntitlement();
   await healUnsupportedInventoryFinishes(user.id);
   const fx = await displayFx(user.preferredCurrency);
+  const storedCurrency = storedMarketCurrency(user.preferredCurrency);
   const [item, storageLocations] = await Promise.all([
     db.inventoryItem.findFirst({
       where: { id, collection: { userId: user.id } },
@@ -167,7 +188,7 @@ export async function getInventoryLot(id: string) {
 
   return {
     user,
-    item: withDisplayFx([item], fx)[0],
+    item: withLotMarkets([item], storedCurrency, fx)[0],
     storageLocations: storageLocations
       .map((entry) => entry.storageLocation)
       .filter((value): value is string => Boolean(value)),
@@ -178,7 +199,8 @@ export async function getStorageOverview() {
   const user = await requireEntitlement();
   await healUnsupportedInventoryFinishes(user.id);
   const fx = await displayFx(user.preferredCurrency);
-  const items = await db.inventoryItem.findMany({
+  const storedCurrency = storedMarketCurrency(user.preferredCurrency);
+  const storedItems = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {
       cardPrinting: {
@@ -192,6 +214,7 @@ export async function getStorageOverview() {
     },
     orderBy: [{ storageLocation: "asc" }, { createdAt: "desc" }],
   });
+  const items = withLotMarkets(storedItems, storedCurrency, fx);
 
   const groups = new Map<
     string,
@@ -215,9 +238,8 @@ export async function getStorageOverview() {
 
   for (const item of items) {
     const key = item.storageLocation?.trim() || "Unassigned";
-    const market = toDisplayMarket(
+    const market = numericMarket(
       item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
-      fx,
     );
     const value = market === null ? null : market * item.quantity;
     const group = groups.get(key) ?? {
@@ -279,7 +301,8 @@ export async function getDashboard() {
   const user = await requireEntitlement();
   await healUnsupportedInventoryFinishes(user.id);
   const fx = await displayFx(user.preferredCurrency);
-  const items = await db.inventoryItem.findMany({
+  const storedCurrency = storedMarketCurrency(user.preferredCurrency);
+  const pricedItems = await db.inventoryItem.findMany({
     where: { collection: { userId: user.id } },
     include: {
       cardPrinting: {
@@ -293,22 +316,24 @@ export async function getDashboard() {
     },
     orderBy: { createdAt: "desc" },
   });
+  const lastPriceUpdate = pricedItems
+    .flatMap((item) => item.cardPrinting.currentPrices)
+    .sort((a, b) => b.retrievedAt.getTime() - a.retrievedAt.getTime())[0]?.retrievedAt;
+  const items = withLotMarkets(pricedItems, storedCurrency, fx);
 
   const lines = items.map((item) => ({
     quantity: item.quantity,
     purchasePrice: item.purchasePrice?.toNumber() ?? null,
-    marketPrice: toDisplayMarket(
+    marketPrice: numericMarket(
       item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
-      fx,
     ),
   }));
   const totals = calculatePortfolio(lines);
   const uniqueCards = new Set(items.map((item) => item.cardPrinting.cardId)).size;
   const mostValuable = [...items]
     .map((item) => {
-      const price = toDisplayMarket(
+      const price = numericMarket(
         item.cardPrinting.currentPrices.find((entry) => entry.finish === item.finish)?.market,
-        fx,
       );
       return { item, price, value: price === null ? null : price * item.quantity };
     })
@@ -321,8 +346,6 @@ export async function getDashboard() {
     totals,
     uniqueCards,
     mostValuable,
-    lastPriceUpdate: items
-      .flatMap((item) => item.cardPrinting.currentPrices)
-      .sort((a, b) => b.retrievedAt.getTime() - a.retrievedAt.getTime())[0]?.retrievedAt,
+    lastPriceUpdate,
   };
 }

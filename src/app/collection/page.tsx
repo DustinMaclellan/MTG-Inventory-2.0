@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
+import type { Currency } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
-import { CollectionTable } from "@/components/collection-table";
+import { CollectionTable, type CollectionRow } from "@/components/collection-table";
 import { getMessages, interpolate, isLocale, pickPlural } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
-import { getInventory } from "@/services/inventory";
+import { getInventory, getInventoryLot } from "@/services/inventory";
 
 export const metadata = { title: "Collection" };
 
@@ -21,10 +22,76 @@ function buildCollectionHref(params: {
   return query ? `/collection?${query}` : "/collection";
 }
 
+function toCollectionRow(item: {
+  id: string;
+  quantity: number;
+  condition: CollectionRow["condition"];
+  finish: CollectionRow["finish"];
+  language: string;
+  purchasePrice: { toNumber(): number } | number | null;
+  purchaseCurrency: Currency;
+  purchaseDate: Date | null;
+  purchaseSource: string | null;
+  storageLocation: string | null;
+  notes: string | null;
+  cardPrinting: {
+    name: string;
+    collectorNumber: string;
+    imageSmallUrl: string | null;
+    imageNormalUrl: string | null;
+    finishes: CollectionRow["finish"][];
+    set: { name: string; code: string };
+    currentPrices: Array<{ finish: CollectionRow["finish"]; market: { toNumber(): number } | number | null }>;
+  };
+}): CollectionRow {
+  return {
+    id: item.id,
+    quantity: item.quantity,
+    condition: item.condition,
+    finish: item.finish,
+    language: item.language,
+    purchasePrice:
+      item.purchasePrice == null
+        ? null
+        : typeof item.purchasePrice === "number"
+          ? item.purchasePrice
+          : item.purchasePrice.toNumber(),
+    purchaseCurrency: item.purchaseCurrency,
+    purchaseDate: item.purchaseDate?.toISOString().slice(0, 10) ?? "",
+    purchaseSource: item.purchaseSource ?? "",
+    storageLocation: item.storageLocation,
+    notes: item.notes ?? "",
+    cardPrinting: {
+      name: item.cardPrinting.name,
+      collectorNumber: item.cardPrinting.collectorNumber,
+      imageSmallUrl: item.cardPrinting.imageSmallUrl,
+      imageNormalUrl: item.cardPrinting.imageNormalUrl,
+      finishes: item.cardPrinting.finishes,
+      set: item.cardPrinting.set,
+      currentPrices: item.cardPrinting.currentPrices.map((price) => ({
+        finish: price.finish,
+        market:
+          price.market == null
+            ? null
+            : typeof price.market === "number"
+              ? price.market
+              : price.market.toNumber(),
+      })),
+    },
+  };
+}
+
 export default async function CollectionPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; storage?: string; condition?: string; finish?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    q?: string;
+    storage?: string;
+    condition?: string;
+    finish?: string;
+    lot?: string;
+  }>;
 }) {
   const user = await requireEntitlement();
   const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
@@ -36,12 +103,18 @@ export default async function CollectionPage({
   const storage = params.storage?.trim() ?? "";
   const condition = params.condition?.trim() ?? "";
   const finish = params.finish?.trim() ?? "";
+  const lotId = params.lot?.trim() ?? "";
 
   const { items, total, pageSize, storageLocations } = await getInventory(page, 25, {
     q, storage, condition, finish,
   });
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const filtersActive = Boolean(q || storage || condition || finish);
+  const rows = items.map(toCollectionRow);
+  const focusLot =
+    lotId && !rows.some((item) => item.id === lotId)
+      ? await getInventoryLot(lotId).then((lot) => (lot ? toCollectionRow(lot.item) : null))
+      : null;
 
   return (
     <AppShell user={user}>
@@ -117,20 +190,14 @@ export default async function CollectionPage({
         </form>
 
         <CollectionTable
-          items={items.map((item) => ({
-            ...item,
-            purchasePrice: item.purchasePrice?.toNumber() ?? null,
-            cardPrinting: {
-              ...item.cardPrinting,
-              currentPrices: item.cardPrinting.currentPrices.map((p) => ({
-                ...p,
-                market: p.market?.toNumber() ?? null,
-              })),
-            },
-          }))}
+          items={rows}
           currency={user.preferredCurrency}
           filtersActive={filtersActive}
           currentQ={q}
+          storageLocations={storageLocations}
+          listHref={buildCollectionHref({ page, q, storage, condition, finish })}
+          initialLotId={lotId || undefined}
+          focusLot={focusLot}
         />
 
         {pages > 1 && (

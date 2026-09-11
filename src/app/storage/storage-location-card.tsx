@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { ArrowUpRight, Inbox, MapPin, Pencil } from "lucide-react";
+import { ArrowUpRight, GitMerge, Inbox, MapPin, Pencil } from "lucide-react";
 import {
+  mergeStorageLocationsAction,
   renameStorageLocationAction,
   type RenameStorageState,
+  type StorageFormState,
 } from "@/app/actions";
 import { interpolate, pickPlural } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
@@ -23,12 +25,19 @@ function collectionHref(name: string) {
   return `/collection?storage=${encodeURIComponent(name === "Unassigned" ? "unassigned" : name)}`;
 }
 
-export function StorageLocationCard({ location }: { location: StorageCardLocation }) {
+export function StorageLocationCard({
+  location,
+  otherNames,
+}: {
+  location: StorageCardLocation;
+  otherNames: string[];
+}) {
   const { m } = useI18n();
   const unassigned = location.name === "Unassigned";
   const extraLots = Math.max(0, location.lots - location.topCards.length);
-  const [renaming, setRenaming] = useState(false);
+  const [panel, setPanel] = useState<"none" | "rename" | "merge">("none");
   const displayName = unassigned ? m.common.unassigned : location.name;
+  const canMerge = !unassigned && otherNames.length > 0;
 
   return (
     <article className="panel group flex flex-col p-5 transition-all hover:border-emerald-400/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]">
@@ -44,23 +53,30 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
             {unassigned ? <Inbox size={16} /> : <MapPin size={16} />}
           </div>
           <div className="min-w-0">
-            {renaming && !unassigned ? (
-              <RenameForm
-                currentName={location.name}
-                onCancel={() => setRenaming(false)}
-              />
+            {panel === "rename" && !unassigned ? (
+              <RenameForm currentName={location.name} onCancel={() => setPanel("none")} />
             ) : (
               <>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-0.5">
                   <h2 className="truncate font-semibold leading-snug">{displayName}</h2>
                   {!unassigned && (
                     <button
                       type="button"
                       title={m.storage.rename}
-                      onClick={() => setRenaming(true)}
+                      onClick={() => setPanel("rename")}
                       className="rounded-md p-1 text-zinc-600 hover:bg-white/6 hover:text-zinc-300 transition-colors"
                     >
                       <Pencil size={13} />
+                    </button>
+                  )}
+                  {canMerge && (
+                    <button
+                      type="button"
+                      title={m.storage.merge}
+                      onClick={() => setPanel(panel === "merge" ? "none" : "merge")}
+                      className="rounded-md p-1 text-zinc-600 hover:bg-white/6 hover:text-zinc-300 transition-colors"
+                    >
+                      <GitMerge size={13} />
                     </button>
                   )}
                 </div>
@@ -76,6 +92,16 @@ export function StorageLocationCard({ location }: { location: StorageCardLocatio
         </div>
         <p className="shrink-0 text-lg font-semibold tracking-tight">{location.marketValue}</p>
       </div>
+
+      {panel === "merge" && canMerge && (
+        <div className="mt-4">
+          <MergeForm
+            currentName={location.name}
+            otherNames={otherNames}
+            onCancel={() => setPanel("none")}
+          />
+        </div>
+      )}
 
       <Link href={collectionHref(location.name)} className="mt-4 flex flex-1 flex-col">
         <div className="flex h-16 items-end">
@@ -156,6 +182,72 @@ function RenameForm({
         </button>
       </div>
       {state.error && <p className="text-xs text-rose-400">{state.error}</p>}
+    </form>
+  );
+}
+
+function MergeForm({
+  currentName,
+  otherNames,
+  onCancel,
+}: {
+  currentName: string;
+  otherNames: string[];
+  onCancel: () => void;
+}) {
+  const { m } = useI18n();
+  const [state, formAction, pending] = useActionState<StorageFormState, FormData>(
+    mergeStorageLocationsAction,
+    {},
+  );
+
+  return (
+    <form
+      action={formAction}
+      className="space-y-2"
+      onSubmit={(event) => {
+        const data = new FormData(event.currentTarget);
+        const to = String(data.get("to") ?? "");
+        if (!window.confirm(interpolate(m.storage.mergeConfirm, { from: currentName, to }))) {
+          event.preventDefault();
+        }
+      }}
+    >
+      <input type="hidden" name="from" value={currentName} />
+      <label className="block text-xs text-zinc-500">{m.storage.merge}</label>
+      <select
+        name="to"
+        required
+        defaultValue=""
+        className="field min-w-0 px-3 py-2 pr-8 text-sm"
+        aria-label={m.storage.mergePick}
+      >
+        <option value="" disabled>
+          {m.storage.mergePick}
+        </option>
+        {otherNames.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <div className="flex items-center gap-2">
+        <button
+          disabled={pending}
+          className="rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-50"
+        >
+          {pending ? m.common.saving : m.storage.mergeCta}
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-xs text-zinc-500 hover:text-zinc-300"
+        >
+          {m.common.cancel}
+        </button>
+      </div>
+      {state.error && <p className="text-xs text-rose-400">{state.error}</p>}
+      {state.notice && <p className="text-xs text-emerald-400">{state.notice}</p>}
     </form>
   );
 }

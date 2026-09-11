@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Currency, Finish } from "@prisma/client";
+import { Currency } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import {
@@ -9,7 +9,7 @@ import {
   type ExportFormat,
   type ExportRow,
 } from "@/lib/export-formats";
-import { displayFx, scryfallPriceWhere, toDisplayMarket } from "@/lib/pricing";
+import { displayFx, marketForFinish, scryfallPriceWhere, storedMarketCurrency } from "@/lib/pricing";
 
 export function parseExportFormat(raw: string | null): ExportFormat {
   const value = raw?.trim() || "moxfield";
@@ -43,6 +43,7 @@ export async function exportInventoryCsv(
 ) {
   if (storage.length > 120) return new Response("Invalid storage location.", { status: 400 });
   const fx = await displayFx(currency);
+  const storedCurrency = storedMarketCurrency(currency);
 
   const items = await db.inventoryItem.findMany({
     where: {
@@ -70,8 +71,11 @@ export async function exportInventoryCsv(
   });
 
   const rows: ExportRow[] = items.map((item) => {
-    const market = toDisplayMarket(
-      item.cardPrinting.currentPrices.find((price) => price.finish === item.finish)?.market,
+    const market = marketForFinish(
+      item.finish,
+      item.cardPrinting.currentPrices,
+      item.cardPrinting.rawPrices,
+      storedCurrency,
       fx,
     );
     return {
@@ -112,6 +116,7 @@ export async function exportDeckCsv(
     return new Response("Invalid deck.", { status: 400 });
   }
   const fx = await displayFx(currency);
+  const storedCurrency = storedMarketCurrency(currency);
 
   const deck = await db.deck.findFirst({
     where: { id: deckId, userId },
@@ -126,9 +131,10 @@ export async function exportDeckCsv(
               scryfallId: true,
               tcgplayerId: true,
               set: { select: { code: true, name: true } },
+              rawPrices: true,
               currentPrices: {
                 where: scryfallPriceWhere(currency),
-                select: { finish: true, market: true },
+                select: { finish: true, currency: true, market: true },
               },
             },
           },
@@ -141,11 +147,15 @@ export async function exportDeckCsv(
   if (!deck) return new Response("Deck not found.", { status: 404 });
 
   const rows: ExportRow[] = deck.cards.map((entry) => {
-    const prices = entry.printing?.currentPrices ?? [];
-    const market = toDisplayMarket(
-      (prices.find((price) => price.finish === Finish.NONFOIL) ?? prices[0])?.market,
-      fx,
-    );
+    const market = entry.printing
+      ? marketForFinish(
+          entry.finish,
+          entry.printing.currentPrices,
+          entry.printing.rawPrices,
+          storedCurrency,
+          fx,
+        )
+      : null;
     return {
       name: entry.card.name,
       setName: entry.printing?.set.name ?? "",
@@ -153,7 +163,7 @@ export async function exportDeckCsv(
       collectorNumber: entry.printing?.collectorNumber ?? "",
       quantity: entry.quantity,
       condition: null,
-      finish: null,
+      finish: entry.finish,
       language: "en",
       purchasePrice: null,
       marketPrice: money(market),

@@ -67,6 +67,9 @@ export default async function StoragePage() {
               {locations.map((location) => (
                 <StorageLocationCard
                   key={location.name}
+                  otherNames={locations
+                    .filter((loc) => loc.name !== "Unassigned" && loc.name !== location.name)
+                    .map((loc) => loc.name)}
                   location={{
                     name: location.name,
                     quantity: location.quantity,

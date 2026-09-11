@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useMemo } from "react";
 import type { Condition, Currency, Finish } from "@prisma/client";
 import {
   deleteInventoryAction,
@@ -36,6 +36,8 @@ export function LotEditor({
   language,
   storageLocations,
   currencies,
+  onSaved,
+  onDeleted,
 }: {
   itemId: string;
   name: string;
@@ -52,6 +54,8 @@ export function LotEditor({
   language: string;
   storageLocations: string[];
   currencies: Currency[];
+  onSaved?: () => void;
+  onDeleted?: () => void;
 }) {
   const { m } = useI18n();
   const [state, formAction, pending] = useActionState<FormState, FormData>(updateInventoryAction, {});
@@ -60,10 +64,19 @@ export function LotEditor({
   const languageOptions = LANGUAGES.includes(language as (typeof LANGUAGES)[number])
     ? LANGUAGES
     : [language, ...LANGUAGES];
+  const locationOptions = useMemo(() => {
+    const names = new Set(storageLocations.map((entry) => entry.trim()).filter(Boolean));
+    if (storageLocation.trim()) names.add(storageLocation.trim());
+    return [...names].sort((a, b) => a.localeCompare(b));
+  }, [storageLocation, storageLocations]);
+
+  useEffect(() => {
+    if (!pending && state.notice) onSaved?.();
+  }, [onSaved, pending, state.notice]);
 
   return (
     <div className="space-y-4">
-      <form action={formAction} className="panel space-y-5 p-5 sm:p-6">
+      <form action={formAction} className="space-y-5">
         <input type="hidden" name="itemId" value={itemId} />
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -174,31 +187,29 @@ export function LotEditor({
             />
           </Field>
 
-          <label className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
-              {m.add.storageLocation}
-            </span>
-            <input
-              className="field min-w-0 px-3 py-2 text-sm"
-              name="storageLocation"
-              defaultValue={storageLocation}
-              maxLength={120}
-              list="lot-storage-locations"
-              placeholder={m.add.storageHint}
-            />
-            <datalist id="lot-storage-locations">
-              {storageLocations.map((location) => (
-                <option key={location} value={location} />
-              ))}
-            </datalist>
-          </label>
+          <div className="sm:col-span-2">
+            <Field label={m.add.storageLocation}>
+              <select
+                className="field min-w-0 px-3 py-2 pr-8 text-sm"
+                name="storageLocation"
+                defaultValue={storageLocation.trim()}
+              >
+                <option value="">{m.common.unassigned}</option>
+                {locationOptions.map((location) => (
+                  <option key={location} value={location}>
+                    {location}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
 
           <label className="flex min-w-0 flex-col gap-1.5 sm:col-span-2">
             <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">
               {m.collection.notes}
             </span>
             <textarea
-              className="field min-h-28 min-w-0 resize-y px-3 py-2 text-sm"
+              className="field min-h-24 min-w-0 resize-y px-3 py-2 text-sm"
               name="notes"
               defaultValue={notes}
               maxLength={1000}
@@ -212,11 +223,6 @@ export function LotEditor({
             {state.error}
           </p>
         )}
-        {state.notice && (
-          <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/8 px-4 py-3 text-sm text-emerald-300">
-            {state.notice}
-          </p>
-        )}
 
         <button disabled={pending} className="button-primary text-sm disabled:opacity-50">
           {pending ? m.common.saving : m.collection.saveLot}
@@ -224,8 +230,11 @@ export function LotEditor({
       </form>
 
       <form
-        action={deleteInventoryAction}
-        className="panel p-5"
+        action={async (formData) => {
+          onDeleted?.();
+          await deleteInventoryAction(formData);
+        }}
+        className="border-t border-white/8 pt-4"
         onSubmit={(event) => {
           if (!confirm(interpolate(m.collection.deleteLotConfirm, { name }))) {
             event.preventDefault();
@@ -233,7 +242,6 @@ export function LotEditor({
         }}
       >
         <input type="hidden" name="itemId" value={itemId} />
-        <input type="hidden" name="returnTo" value="/collection" />
         <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-zinc-700">
           {m.decks.danger}
         </p>

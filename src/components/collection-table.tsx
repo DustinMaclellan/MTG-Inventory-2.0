@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Pencil, Trash2, X } from "lucide-react";
 import {
@@ -14,6 +15,7 @@ import type { Condition, Currency, Finish } from "@prisma/client";
 import { interpolate, pickPlural } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
 import { formatMoney } from "@/lib/money";
+import { LotEditorDialog } from "@/components/lot-editor-dialog";
 
 // ─── Types ─────────────────────────────────────────────────
 export type CollectionRow = {
@@ -24,11 +26,16 @@ export type CollectionRow = {
   language: string;
   purchasePrice: number | null;
   purchaseCurrency: Currency;
+  purchaseDate: string;
+  purchaseSource: string;
   storageLocation: string | null;
+  notes: string;
   cardPrinting: {
     name: string;
     collectorNumber: string;
     imageSmallUrl: string | null;
+    imageNormalUrl: string | null;
+    finishes: Finish[];
     set: { name: string; code: string };
     currentPrices: Array<{ finish: Finish; market: number | null }>;
   };
@@ -59,16 +66,33 @@ export function CollectionTable({
   currency,
   filtersActive,
   currentQ,
+  storageLocations,
+  listHref,
+  initialLotId,
+  focusLot,
 }: {
   items: CollectionRow[];
   currency: Currency;
   filtersActive: boolean;
   currentQ: string;
+  storageLocations: string[];
+  listHref: string;
+  initialLotId?: string;
+  focusLot?: CollectionRow | null;
 }) {
   const { locale, m } = useI18n();
+  const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [editing, setEditing] = useState<CollectionRow | null>(
+    () => (initialLotId ? items.find((item) => item.id === initialLotId) ?? focusLot ?? null : null),
+  );
+
+  function closeEditor() {
+    setEditing(null);
+    if (initialLotId) router.replace(listHref, { scroll: false });
+  }
 
   useEffect(() => { setSelected(new Set()); }, [items]);
 
@@ -187,9 +211,10 @@ export function CollectionTable({
                       className="accent-emerald-400 cursor-pointer" />
                   </td>
                   <td className="px-4 py-3">
-                    <Link
-                      href={`/collection/${item.id}`}
-                      className="flex items-center gap-3 hover:text-emerald-300 transition-colors"
+                    <button
+                      type="button"
+                      onClick={() => setEditing(item)}
+                      className="flex items-center gap-3 text-left hover:text-emerald-300 transition-colors"
                     >
                       <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded bg-zinc-900">
                         {item.cardPrinting.imageSmallUrl && (
@@ -197,7 +222,7 @@ export function CollectionTable({
                         )}
                       </div>
                       <span className="max-w-52 truncate font-medium">{item.cardPrinting.name}</span>
-                    </Link>
+                    </button>
                   </td>
                   <td className="px-4 py-3 text-sm text-zinc-400">
                     {item.cardPrinting.set.code.toUpperCase()} · #{item.cardPrinting.collectorNumber}
@@ -231,13 +256,14 @@ export function CollectionTable({
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end">
-                      <Link
-                        href={`/collection/${item.id}`}
+                      <button
+                        type="button"
                         title={m.collection.editLot}
+                        onClick={() => setEditing(item)}
                         className="rounded-lg p-2 text-zinc-700 hover:bg-white/6 hover:text-zinc-200 transition-colors"
                       >
                         <Pencil size={15} />
-                      </Link>
+                      </button>
                       <form action={deleteInventoryAction}>
                         <input type="hidden" name="itemId" value={item.id} />
                         <button title={m.collection.deleteLot}
@@ -259,6 +285,16 @@ export function CollectionTable({
           </div>
         )}
       </div>
+
+      {editing && (
+        <LotEditorDialog
+          item={editing}
+          storageLocations={storageLocations}
+          currencies={["USD", "CAD", "EUR"]}
+          displayCurrency={currency}
+          onClose={closeEditor}
+        />
+      )}
 
       {selected.size > 0 && (
         <BulkBar selectedIds={[...selected]} onDone={() => setSelected(new Set())} />

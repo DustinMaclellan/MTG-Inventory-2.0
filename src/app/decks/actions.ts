@@ -1,12 +1,22 @@
 "use server";
 
+import { Condition, Finish } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getMessages, interpolate } from "@/i18n";
+import { getRequestLocale } from "@/i18n/request";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deckFormatAllowsCommander } from "@/lib/deck-formats";
+import { coerceFinish } from "@/lib/finish";
+import { scryfall } from "@/services/scryfall";
 
-export type DeckFormState = { error?: string };
+export type DeckFormState = { error?: string; notice?: string };
+
+async function t() {
+  return getMessages(await getRequestLocale());
+}
 
 const deckSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -20,7 +30,7 @@ export async function createDeckAction(
 ): Promise<DeckFormState> {
   const user = await requireEntitlement();
   const parsed = deckSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) return { error: "Enter a deck name (max 80 characters)." };
+  if (!parsed.success) return { error: (await t()).decks.invalidDeck };
 
   const deck = await db.deck.create({
     data: {
@@ -45,6 +55,7 @@ const deckCardSchema = z.object({
   deckId: z.string().cuid(),
   cardId: z.string().cuid(),
   printingId: z.string().cuid().optional(),
+  finish: z.enum(Finish).default(Finish.NONFOIL),
   quantity: z.coerce.number().int().min(1).max(99),
   isCommanderZone: z.preprocess((v) => v === "true", z.boolean()),
 });
@@ -57,30 +68,50 @@ export async function addDeckCardAction(
   const parsed = deckCardSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Invalid card or quantity." };
 
-  // Verify deck belongs to user
   const deck = await db.deck.findFirst({
     where: { id: parsed.data.deckId, userId: user.id },
   });
   if (!deck) return { error: "Deck not found." };
 
-  const { deckId, cardId, printingId, quantity, isCommanderZone } = parsed.data;
+  const { deckId, cardId, printingId } = parsed.data;
+  let finish = parsed.data.finish;
+  const asCommander = deckFormatAllowsCommander(deck.format) && parsed.data.isCommanderZone;
+  const quantity = asCommander ? 1 : parsed.data.quantity;
 
-  // Upsert by (deckId, cardPrintingId) — each printing is its own deck entry
+  if (printingId) {
+    const printing = await db.cardPrinting.findUnique({
+      where: { id: printingId },
+      select: { finishes: true },
+    });
+    if (!printing) return { error: "Invalid card or quantity." };
+    if (printing.finishes.length > 0 && !printing.finishes.includes(finish)) {
+      return { error: (await t()).decks.finishUnavailable };
+    }
+  }
+
   const existing = printingId
-    ? await db.deckCard.findFirst({ where: { deckId, cardPrintingId: printingId } })
-    : await db.deckCard.findFirst({ where: { deckId, cardId, cardPrintingId: null } });
+    ? await db.deckCard.findFirst({ where: { deckId, cardPrintingId: printingId, finish } })
+    : await db.deckCard.findFirst({ where: { deckId, cardId, cardPrintingId: null, finish } });
 
   if (existing) {
     await db.deckCard.update({
       where: { id: existing.id },
-      data: { quantity, isCommanderZone },
+      data: { quantity, isCommanderZone: asCommander },
     });
   } else {
     await db.deckCard.create({
-      data: { deckId, cardId, cardPrintingId: printingId ?? null, quantity, isCommanderZone },
+      data: {
+        deckId,
+        cardId,
+        cardPrintingId: printingId ?? null,
+        finish,
+        quantity,
+        isCommanderZone: asCommander,
+      },
     });
   }
 
+  revalidatePath("/decks");
   revalidatePath(`/decks/${deckId}`);
   return {};
 }
@@ -90,10 +121,203 @@ export async function removeDeckCardAction(formData: FormData): Promise<void> {
   const deckCardId = z.string().cuid().parse(formData.get("deckCardId"));
   const deckId = z.string().cuid().parse(formData.get("deckId"));
 
-  // Verify ownership via deck
   const deck = await db.deck.findFirst({ where: { id: deckId, userId: user.id } });
   if (!deck) return;
 
   await db.deckCard.delete({ where: { id: deckCardId } });
+  revalidatePath("/decks");
   revalidatePath(`/decks/${deckId}`);
+}
+
+export async function updateDeckAction(
+  _: DeckFormState,
+  formData: FormData,
+): Promise<DeckFormState> {
+  const user = await requireEntitlement();
+  const parsed = deckSchema
+    .extend({ deckId: z.string().cuid() })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: (await t()).decks.invalidDeck };
+
+  const format = parsed.data.format || null;
+  const result = await db.deck.updateMany({
+    where: { id: parsed.data.deckId, userId: user.id },
+    data: {
+      name: parsed.data.name,
+      format,
+      notes: parsed.data.notes || null,
+    },
+  });
+  if (result.count === 0) return { error: (await t()).decks.invalidDeck };
+
+  if (!deckFormatAllowsCommander(format)) {
+    await db.deckCard.updateMany({
+      where: { deckId: parsed.data.deckId },
+      data: { isCommanderZone: false },
+    });
+  }
+
+  revalidatePath("/decks");
+  revalidatePath(`/decks/${parsed.data.deckId}`);
+  return { notice: (await t()).decks.deckSaved };
+}
+
+export async function updateDeckCardAction(formData: FormData) {
+  const user = await requireEntitlement();
+  const parsed = z
+    .object({
+      deckId: z.string().cuid(),
+      deckCardId: z.string().cuid(),
+      quantity: z.coerce.number().int().min(1).max(99).optional(),
+      isCommanderZone: z.enum(["true", "false"]).optional(),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+
+  const deck = await db.deck.findFirst({
+    where: { id: parsed.data.deckId, userId: user.id },
+    select: { id: true, format: true },
+  });
+  if (!deck) return;
+
+  const allowsCommander = deckFormatAllowsCommander(deck.format);
+  const data: { quantity?: number; isCommanderZone?: boolean } = {};
+  if (parsed.data.isCommanderZone !== undefined) {
+    if (!allowsCommander) return;
+    data.isCommanderZone = parsed.data.isCommanderZone === "true";
+    if (data.isCommanderZone) {
+      data.quantity = 1;
+      await db.deckCard.updateMany({
+        where: { deckId: deck.id, isCommanderZone: true },
+        data: { isCommanderZone: false },
+      });
+    }
+  }
+  if (parsed.data.quantity !== undefined) {
+    data.quantity = parsed.data.quantity;
+  }
+  if (Object.keys(data).length === 0) return;
+
+  if (data.quantity !== undefined && data.isCommanderZone !== true) {
+    const row = await db.deckCard.findFirst({
+      where: { id: parsed.data.deckCardId, deckId: deck.id },
+      select: { isCommanderZone: true },
+    });
+    if (row?.isCommanderZone) data.quantity = 1;
+  }
+
+  await db.deckCard.updateMany({
+    where: { id: parsed.data.deckCardId, deckId: deck.id },
+    data,
+  });
+  revalidatePath("/decks");
+  revalidatePath(`/decks/${deck.id}`);
+}
+
+export async function setDeckCommanderAction(formData: FormData) {
+  const user = await requireEntitlement();
+  const parsed = z
+    .object({
+      deckId: z.string().cuid(),
+      deckCardId: z.union([z.literal(""), z.string().cuid()]),
+    })
+    .safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return;
+
+  const deck = await db.deck.findFirst({
+    where: { id: parsed.data.deckId, userId: user.id },
+    select: { id: true, format: true },
+  });
+  if (!deck || !deckFormatAllowsCommander(deck.format)) return;
+
+  await db.deckCard.updateMany({
+    where: { deckId: deck.id, isCommanderZone: true },
+    data: { isCommanderZone: false },
+  });
+
+  if (parsed.data.deckCardId) {
+    await db.deckCard.updateMany({
+      where: { id: parsed.data.deckCardId, deckId: deck.id },
+      data: { isCommanderZone: true, quantity: 1 },
+    });
+  }
+
+  revalidatePath("/decks");
+  revalidatePath(`/decks/${deck.id}`);
+}
+
+export async function addAllMissingToCollectionAction(
+  _: DeckFormState,
+  formData: FormData,
+): Promise<DeckFormState> {
+  const user = await requireEntitlement();
+  const m = await t();
+  const parsed = z.object({ deckId: z.string().cuid() }).safeParse({ deckId: formData.get("deckId") });
+  if (!parsed.success) return { error: m.decks.invalidDeck };
+
+  const deck = await db.deck.findFirst({
+    where: { id: parsed.data.deckId, userId: user.id },
+    include: {
+      cards: { include: { printing: { select: { id: true, finishes: true, scryfallId: true } } } },
+    },
+  });
+  if (!deck) return { error: m.decks.invalidDeck };
+
+  const collection = await db.collection.findFirst({
+    where: { userId: user.id },
+    select: { id: true },
+  });
+  if (!collection) return { error: m.decks.invalidDeck };
+
+  const printingIds = deck.cards.map((row) => row.cardPrintingId).filter(Boolean) as string[];
+  const ownedRows =
+    printingIds.length === 0
+      ? []
+      : await db.inventoryItem.groupBy({
+          by: ["cardPrintingId", "finish"],
+          where: { collectionId: collection.id, cardPrintingId: { in: printingIds } },
+          _sum: { quantity: true },
+        });
+  const ownedByPrintingFinish = new Map(
+    ownedRows.map((row) => [`${row.cardPrintingId}:${row.finish}`, row._sum.quantity ?? 0]),
+  );
+
+  let added = 0;
+  const addedScryfallIds: string[] = [];
+  for (const row of deck.cards) {
+    if (!row.cardPrintingId || !row.printing) continue;
+    const finish = coerceFinish(row.finish, row.printing.finishes);
+    const ownedKey = `${row.cardPrintingId}:${finish}`;
+    const needed = Math.max(0, row.quantity - (ownedByPrintingFinish.get(ownedKey) ?? 0));
+    if (needed === 0) continue;
+    await db.inventoryItem.create({
+      data: {
+        collectionId: collection.id,
+        cardPrintingId: row.cardPrintingId,
+        quantity: needed,
+        condition: Condition.NEAR_MINT,
+        finish,
+        purchaseCurrency: user.preferredCurrency,
+      },
+    });
+    ownedByPrintingFinish.set(ownedKey, (ownedByPrintingFinish.get(ownedKey) ?? 0) + needed);
+    added += needed;
+    addedScryfallIds.push(row.printing.scryfallId);
+  }
+
+  if (addedScryfallIds.length > 0) {
+    try {
+      const cards = await scryfall.getPrintingsByIds([...new Set(addedScryfallIds)]);
+      await scryfall.synchronizePrintings(cards);
+    } catch {
+      // Lots are already created; collection can still fall back to stored JSON prices.
+    }
+  }
+
+  revalidatePath("/decks");
+  revalidatePath(`/decks/${deck.id}`);
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+  revalidatePath("/storage");
+  return { notice: interpolate(m.decks.addedMissing, { count: added }) };
 }

@@ -5,17 +5,7 @@ import { useActionState } from "react";
 import { createDeckAction } from "@/app/decks/actions";
 import type { DeckFormState } from "@/app/decks/actions";
 import { useI18n } from "@/i18n/provider";
-
-const FORMAT_KEYS = [
-  "commander",
-  "standard",
-  "modern",
-  "legacy",
-  "vintage",
-  "pioneer",
-  "pauper",
-  "draft",
-] as const;
+import { DECK_FORMATS } from "@/lib/deck-formats";
 
 export function NewDeckForm() {
   const { m } = useI18n();
@@ -43,7 +33,7 @@ export function NewDeckForm() {
         <label className="text-xs font-medium uppercase tracking-wider text-zinc-500">{m.decks.format}</label>
         <select name="format" defaultValue="" className="field">
           <option value="">{m.decks.selectFormat}</option>
-          {FORMAT_KEYS.map((value) => (
+          {DECK_FORMATS.map((value) => (
             <option key={value} value={value}>{m.format[value]}</option>
           ))}
         </select>

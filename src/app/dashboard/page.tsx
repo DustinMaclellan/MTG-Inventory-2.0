@@ -121,7 +121,7 @@ export default async function DashboardPage() {
                 {items.slice(0, 6).map((item) => (
                   <Link
                     key={item.id}
-                    href={`/collection/${item.id}`}
+                    href={`/collection?lot=${item.id}`}
                     className="grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3.5 hover:bg-white/[.015] transition-colors"
                   >
                     <div className="min-w-0">
@@ -149,7 +149,7 @@ export default async function DashboardPage() {
               </p>
             </div>
             {mostValuable ? (
-              <Link href={`/collection/${mostValuable.item.id}`} className="flex gap-4 p-5 hover:bg-white/[.015] transition-colors">
+              <Link href={`/collection?lot=${mostValuable.item.id}`} className="flex gap-4 p-5 hover:bg-white/[.015] transition-colors">
                 {mostValuable.item.cardPrinting.imageSmallUrl && (
                   <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow-lg">
                     <Image

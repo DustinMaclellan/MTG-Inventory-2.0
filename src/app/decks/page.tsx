@@ -3,7 +3,7 @@ import { PlusCircle, Boxes } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { dateLocale, getMessages, interpolate, isLocale, pickPlural, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { getDeckSummaries } from "@/services/decks";
 
 export const metadata = { title: "Decks" };
 
@@ -15,11 +15,7 @@ export default async function DecksPage() {
   const user = await requireEntitlement();
   const locale = isLocale(user.preferredLocale) ? user.preferredLocale : "en";
   const m = getMessages(locale);
-  const decks = await db.deck.findMany({
-    where: { userId: user.id },
-    include: { _count: { select: { cards: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  const decks = await getDeckSummaries();
 
   return (
     <AppShell user={user}>
@@ -69,7 +65,9 @@ export default async function DecksPage() {
                     )}
                   </div>
                   <span className="shrink-0 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-xs font-medium text-zinc-400">
-                    {interpolate(m.decks.cardsCount, { count: deck._count.cards })}
+                    {deck.totalCards > 0
+                      ? interpolate(m.decks.ownedOf, { owned: deck.ownedCards, total: deck.totalCards })
+                      : interpolate(m.decks.cardsCount, { count: 0 })}
                   </span>
                 </div>
                 {deck.notes && (

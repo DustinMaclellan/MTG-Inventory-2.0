@@ -1,14 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Finish } from "@prisma/client";
 import { Boxes, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { getMessages, interpolate, isLocale, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { deckFormatAllowsCommander } from "@/lib/deck-formats";
 import { removeDeckCardAction } from "@/app/decks/actions";
 import { DeleteDeckButton } from "./delete-deck-button";
+import { AddMissingButton } from "./add-missing-button";
+import { DeckCardControls } from "./deck-card-controls";
 import { DeckCardSearch } from "./deck-card-search";
+import { DeckCommanderPicker } from "./deck-commander-picker";
+import { DeckDetailsForm } from "./deck-details-form";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -45,36 +51,39 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
   if (!deck) notFound();
 
-  // Ownership check — per specific printing chosen for each deck entry
+  // Ownership check — per printing + finish chosen for each deck entry
   const deckPrintingIds = deck.cards.map((dc) => dc.cardPrintingId).filter(Boolean) as string[];
   const collection = await db.collection.findFirst({ where: { userId: user.id }, select: { id: true } });
-  const ownedByPrintingId = new Map<string, number>();
+  const ownedByPrintingFinish = new Map<string, number>();
 
   if (collection && deckPrintingIds.length > 0) {
     const owned = await db.inventoryItem.groupBy({
-      by: ["cardPrintingId"],
+      by: ["cardPrintingId", "finish"],
       where: { collectionId: collection.id, cardPrintingId: { in: deckPrintingIds } },
       _sum: { quantity: true },
     });
     for (const o of owned) {
-      ownedByPrintingId.set(o.cardPrintingId, o._sum.quantity ?? 0);
+      ownedByPrintingFinish.set(`${o.cardPrintingId}:${o.finish}`, o._sum.quantity ?? 0);
     }
   }
 
   const totalCards = deck.cards.reduce((s, dc) => s + dc.quantity, 0);
   const ownedCards = deck.cards.reduce((s, dc) => {
-    const key = dc.cardPrintingId ?? "";
-    return s + Math.min(ownedByPrintingId.get(key) ?? 0, dc.quantity);
+    if (!dc.cardPrintingId) return s;
+    const owned = ownedByPrintingFinish.get(`${dc.cardPrintingId}:${dc.finish}`) ?? 0;
+    return s + Math.min(owned, dc.quantity);
   }, 0);
   const missingCards = totalCards - ownedCards;
   const completionPct = totalCards > 0 ? Math.round((ownedCards / totalCards) * 100) : 0;
 
-  // Pass the printing IDs already in this deck — search will dedup by printing
-  const existingPrintingIds = deckPrintingIds;
+  const existingEntries = deck.cards
+    .filter((dc): dc is typeof dc & { cardPrintingId: string } => Boolean(dc.cardPrintingId))
+    .map((dc) => ({ printingId: dc.cardPrintingId, finish: dc.finish }));
 
-  // Split into owned/partial/missing groups for display
   const withOwnership = deck.cards.map((dc) => {
-    const owned = ownedByPrintingId.get(dc.cardPrintingId ?? "") ?? 0;
+    const owned = dc.cardPrintingId
+      ? ownedByPrintingFinish.get(`${dc.cardPrintingId}:${dc.finish}`) ?? 0
+      : 0;
     return {
       ...dc,
       ownedQty: owned,
@@ -84,8 +93,9 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
     };
   });
 
-  const commanders = withOwnership.filter((dc) => dc.isCommanderZone);
-  const mainboard = withOwnership.filter((dc) => !dc.isCommanderZone);
+  const allowsCommander = deckFormatAllowsCommander(deck.format);
+  const commander = allowsCommander ? withOwnership.find((dc) => dc.isCommanderZone) ?? null : null;
+  const mainboard = commander ? withOwnership.filter((dc) => dc.id !== commander.id) : withOwnership;
 
   return (
     <AppShell user={user}>
@@ -102,11 +112,17 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
           <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
             <div>
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-4xl font-semibold tracking-tight">{deck.name}</h1>
                 {deck.format && (
                   <span className="badge">{m.format[deck.format as keyof typeof m.format] ?? deck.format}</span>
                 )}
+                <DeckDetailsForm
+                  deckId={deck.id}
+                  name={deck.name}
+                  format={deck.format}
+                  notes={deck.notes}
+                />
               </div>
               {deck.notes && (
                 <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-500">{deck.notes}</p>
@@ -115,14 +131,25 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
             {/* Completion summary */}
             {totalCards > 0 && (
-              <div className="panel flex items-center gap-6 px-6 py-4">
-                <Stat label={m.decks.total} value={totalCards} />
-                <Divider />
-                <Stat label={m.decks.owned} value={ownedCards} color="text-emerald-400" />
-                <Divider />
-                <Stat label={m.decks.missing} value={missingCards} color={missingCards > 0 ? "text-rose-400" : "text-zinc-500"} />
-                <Divider />
-                <Stat label={m.decks.complete} value={`${completionPct}%`} color={completionPct === 100 ? "text-emerald-400" : "text-zinc-300"} />
+              <div className="flex flex-col items-end gap-2">
+                <div className="panel flex items-center gap-6 px-6 py-4">
+                  <Stat label={m.decks.total} value={totalCards} />
+                  <Divider />
+                  <Stat label={m.decks.owned} value={ownedCards} color="text-emerald-400" />
+                  <Divider />
+                  <Stat
+                    label={m.decks.missing}
+                    value={missingCards}
+                    color={missingCards > 0 ? "text-rose-400" : "text-zinc-500"}
+                  />
+                  <Divider />
+                  <Stat
+                    label={m.decks.complete}
+                    value={`${completionPct}%`}
+                    color={completionPct === 100 ? "text-emerald-400" : "text-zinc-300"}
+                  />
+                </div>
+                <AddMissingButton deckId={deck.id} count={missingCards} />
               </div>
             )}
           </div>
@@ -146,19 +173,31 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </div>
             ) : (
               <>
-                {/* Commander zone */}
-                {commanders.length > 0 && (
-                  <CardGroup
-                    label={m.decks.commander}
-                    rows={commanders}
-                    deckId={deck.id}
-                    m={m}
-                  />
+                {allowsCommander && (
+                  <div>
+                    <DeckCommanderPicker
+                      deckId={deck.id}
+                      commanderId={commander?.id ?? null}
+                      cards={withOwnership.map((dc) => ({
+                        id: dc.id,
+                        name: dc.card.name,
+                        finish: dc.finish,
+                      }))}
+                    />
+                    {commander && (
+                      <CardGroup rows={[commander]} deckId={deck.id} showQuantity={false} m={m} />
+                    )}
+                  </div>
                 )}
                 <CardGroup
-                  label={commanders.length > 0 ? interpolate(m.decks.mainboard, { count: mainboard.length }) : undefined}
+                  label={
+                    allowsCommander
+                      ? interpolate(m.decks.mainboard, { count: mainboard.length })
+                      : undefined
+                  }
                   rows={mainboard}
                   deckId={deck.id}
+                  showQuantity
                   m={m}
                 />
               </>
@@ -175,7 +214,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
               </p>
               {/* Results scroll inside the panel — never pushes Delete down */}
               <div className="max-h-[60vh] overflow-y-auto">
-                <DeckCardSearch deckId={deck.id} existingPrintingIds={existingPrintingIds} />
+                <DeckCardSearch deckId={deck.id} existingEntries={existingEntries} />
               </div>
             </div>
 
@@ -198,6 +237,7 @@ type DeckCardRow = {
   id: string;
   cardId: string;
   cardPrintingId: string | null;
+  finish: Finish;
   quantity: number;
   isCommanderZone: boolean;
   ownedQty: number;
@@ -217,11 +257,13 @@ function CardGroup({
   label,
   rows,
   deckId,
+  showQuantity,
   m,
 }: {
   label?: string;
   rows: DeckCardRow[];
   deckId: string;
+  showQuantity: boolean;
   m: Messages;
 }) {
   if (rows.length === 0) return null;
@@ -273,40 +315,37 @@ function CardGroup({
                 )}
               </div>
 
-              {/* Identity */}
               <div className="flex-1 min-w-0">
                 <p className="font-semibold leading-snug">{dc.card.name}</p>
                 <p className="mt-0.5 text-xs text-zinc-600">
                   {printing
-                    ? `${printing.set.name} · ${printing.set.code.toUpperCase()} #${printing.collectorNumber}`
-                    : "—"}
+                    ? `${printing.set.name} · ${printing.set.code.toUpperCase()} #${printing.collectorNumber} · ${m.finish[dc.finish]}`
+                    : m.finish[dc.finish]}
                 </p>
-                {dc.isCommanderZone && (
-                  <span className="mt-1 inline-block rounded border border-emerald-400/25 bg-emerald-400/8 px-1.5 py-0.5 text-[10px] font-medium text-emerald-400">
-                    {m.decks.commander}
-                  </span>
-                )}
               </div>
 
-              {/* Quantity + status */}
-              <div className="shrink-0 flex flex-col items-end gap-1.5">
-                <span className="text-sm font-semibold text-zinc-300">× {dc.quantity}</span>
+              <div className="flex shrink-0 items-center gap-3">
                 <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusColor}`}>
                   {statusText}
                 </span>
+                {showQuantity && (
+                  <DeckCardControls
+                    deckId={deckId}
+                    deckCardId={dc.id}
+                    quantity={dc.quantity}
+                  />
+                )}
+                <form action={removeDeckCardAction}>
+                  <input type="hidden" name="deckCardId" value={dc.id} />
+                  <input type="hidden" name="deckId" value={deckId} />
+                  <button
+                    title={m.decks.remove}
+                    className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </form>
               </div>
-
-              {/* Remove */}
-              <form action={removeDeckCardAction} className="shrink-0">
-                <input type="hidden" name="deckCardId" value={dc.id} />
-                <input type="hidden" name="deckId" value={deckId} />
-                <button
-                  title={m.decks.remove}
-                  className="rounded-lg p-2 text-zinc-700 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </form>
             </div>
           );
         })}
@@ -316,7 +355,15 @@ function CardGroup({
 }
 
 // ─── Small helpers ─────────────────────────────────────────
-function Stat({ label, value, color = "text-zinc-200" }: { label: string; value: string | number; color?: string }) {
+function Stat({
+  label,
+  value,
+  color = "text-zinc-200",
+}: {
+  label: string;
+  value: string | number;
+  color?: string;
+}) {
   return (
     <div className="text-center">
       <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-600">{label}</p>

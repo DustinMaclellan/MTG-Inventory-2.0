@@ -27,29 +27,36 @@ export async function GET(request: Request) {
     select: { id: true },
   });
 
-  const ownedByPrintingId = new Map<string, number>();
+  const ownedByPrintingFinish = new Map<string, number>();
   if (collection) {
     const owned = await db.inventoryItem.groupBy({
-      by: ["cardPrintingId"],
+      by: ["cardPrintingId", "finish"],
       where: { collectionId: collection.id, cardPrintingId: { in: printingIds } },
       _sum: { quantity: true },
     });
     for (const o of owned) {
-      ownedByPrintingId.set(o.cardPrintingId, o._sum.quantity ?? 0);
+      ownedByPrintingFinish.set(`${o.cardPrintingId}:${o.finish}`, o._sum.quantity ?? 0);
     }
   }
 
-  const results = printings.map((p) => ({
-    cardId: p.cardId,
-    printingId: p.id,
-    name: p.name,
-    typeLine: p.card.typeLine,
-    imageSmallUrl: p.imageSmallUrl,
-    setCode: p.set.code,
-    setName: p.set.name,
-    collectorNumber: p.collectorNumber,
-    ownedQuantity: ownedByPrintingId.get(p.id) ?? 0,
-  }));
+  const results = printings.map((p) => {
+    const finishes = p.finishes.length > 0 ? p.finishes : (["NONFOIL"] as const);
+    const ownedByFinish = Object.fromEntries(
+      finishes.map((finish) => [finish, ownedByPrintingFinish.get(`${p.id}:${finish}`) ?? 0]),
+    );
+    return {
+      cardId: p.cardId,
+      printingId: p.id,
+      name: p.name,
+      typeLine: p.card.typeLine,
+      imageSmallUrl: p.imageSmallUrl,
+      setCode: p.set.code,
+      setName: p.set.name,
+      collectorNumber: p.collectorNumber,
+      finishes,
+      ownedByFinish,
+    };
+  });
 
   return NextResponse.json(results);
 }
