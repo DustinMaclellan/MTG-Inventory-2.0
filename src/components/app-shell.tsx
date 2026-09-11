@@ -30,7 +30,7 @@ export function AppShell({
           href="/dashboard"
           className="mb-8 flex items-center gap-3 px-2 py-1 rounded-xl transition-colors hover:bg-white/3"
         >
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_24px_rgba(52,211,153,.25)]">
+          <span className="brand-mark grid size-9 shrink-0 place-items-center rounded-xl">
             <Sparkles size={18} />
           </span>
           <span>
@@ -52,7 +52,7 @@ export function AppShell({
           </form>
 
           <div className="mt-4 flex items-center gap-3 px-3">
-            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-400/15 text-[11px] font-semibold text-emerald-400 border border-emerald-400/20">
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent/15 text-[11px] font-semibold text-accent border border-accent/20">
               {initials}
             </span>
             <div className="min-w-0">
@@ -65,13 +65,13 @@ export function AppShell({
 
       <main className="pb-24 lg:ml-60 lg:pb-0">
         {daysLeft !== null && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-400/15 bg-emerald-400/6 px-5 py-2.5 text-sm text-emerald-100/90">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-accent/15 bg-accent/6 px-5 py-2.5 text-sm text-zinc-100/90">
             <p className="text-xs">
               {pickPlural(daysLeft, m.trial.daysLeft, m.trial.daysLeftPlural)}
             </p>
             <Link
               href="/subscribe"
-              className="text-xs font-semibold text-emerald-300 hover:text-white transition-colors"
+              className="text-xs font-semibold text-accent hover:text-white transition-colors"
             >
               {m.trial.subscribe}
             </Link>

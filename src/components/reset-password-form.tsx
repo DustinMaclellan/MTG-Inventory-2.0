@@ -21,7 +21,7 @@ export function ResetPasswordForm({
     return (
       <p className="mt-8 text-sm text-rose-300">
         {m.auth.missingToken}{" "}
-        <Link href="/forgot-password" className="text-emerald-400">
+        <Link href="/forgot-password" className="text-accent">
           {m.auth.forgotPasswordLink}
         </Link>
         .

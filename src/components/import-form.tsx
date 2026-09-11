@@ -77,7 +77,7 @@ function PrintingPicker({
             onClick={() => onSelect(candidate.printingId)}
             className={`flex w-full items-center gap-3.5 rounded-xl border p-3 text-left transition-colors ${
               selected
-                ? "border-emerald-400 bg-emerald-400/10"
+                ? "border-accent bg-accent/10"
                 : "border-white/10 bg-black/30 hover:border-white/20"
             }`}
           >
@@ -207,7 +207,7 @@ export function ImportForm() {
                       </p>
                       {selected ? (
                         <>
-                          <p className="truncate text-xs text-emerald-400">{selected.setName}</p>
+                          <p className="truncate text-xs text-accent">{selected.setName}</p>
                           <p className="text-[11px] text-zinc-600">
                             {selected.setCode.toUpperCase()} · #{selected.collectorNumber}
                             {selected.finishes.length
@@ -239,7 +239,7 @@ export function ImportForm() {
                             [choice.row]: event.target.value as Finish,
                           }))
                         }
-                        className="h-10 w-[7.5rem] shrink-0 rounded-xl border border-white/10 bg-black/40 py-0 pr-8 pl-3 text-xs text-zinc-200 outline-none focus:border-emerald-400/50"
+                        className="h-10 w-[7.5rem] shrink-0 rounded-xl border border-white/10 bg-black/40 py-0 pr-8 pl-3 text-xs text-zinc-200 outline-none focus:border-accent/50"
                       >
                         {finishOptions.map((option) => (
                           <option key={option} value={option}>

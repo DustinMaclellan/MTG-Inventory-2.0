@@ -60,10 +60,10 @@ export default async function PricingPage() {
             </p>
           </article>
 
-          <article className="panel relative overflow-hidden border-emerald-400/20 p-7">
-            <div className="absolute inset-0 bg-emerald-400/3 pointer-events-none" aria-hidden />
+          <article className="panel relative overflow-hidden border-accent/20 p-7">
+            <div className="absolute inset-0 bg-accent/3 pointer-events-none" aria-hidden />
             <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-400">{m.marketing.yearly}</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-accent">{m.marketing.yearly}</p>
               <span className="badge">{interpolate(m.marketing.savePct, { pct: SAVINGS_PCT })}</span>
             </div>
             <div className="mt-4 flex items-end gap-1.5">
@@ -83,7 +83,7 @@ export default async function PricingPage() {
           <ul className="space-y-3">
             {features.map((feature) => (
               <li key={feature} className="flex items-start gap-3 text-sm text-zinc-300">
-                <Check size={14} className="mt-0.5 shrink-0 text-emerald-400" aria-hidden />
+                <Check size={14} className="mt-0.5 shrink-0 text-accent" aria-hidden />
                 {feature}
               </li>
             ))}

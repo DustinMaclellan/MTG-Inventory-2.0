@@ -94,7 +94,7 @@ export function AuthForm({
             m.auth.benefit3,
           ].map((item) => (
             <li key={item} className="flex items-center gap-2 text-xs text-zinc-600">
-              <Check size={12} className="shrink-0 text-emerald-500" aria-hidden />
+              <Check size={12} className="shrink-0 text-accent" aria-hidden />
               {item}
             </li>
           ))}
@@ -112,7 +112,7 @@ export function AuthForm({
       <p className="border-t border-white/6 pt-4 text-center text-sm text-zinc-600">
         {registering ? `${m.auth.alreadyAccount} ` : `${m.auth.newTo} `}
         <Link
-          className="font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+          className="font-medium text-accent hover:text-accent-hover transition-colors"
           href={registering ? "/login" : "/register"}
         >
           {registering ? m.common.signIn : m.common.startFreeTrial}

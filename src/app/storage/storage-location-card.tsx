@@ -40,14 +40,14 @@ export function StorageLocationCard({
   const canMerge = !unassigned && otherNames.length > 0;
 
   return (
-    <article className="panel group flex flex-col p-5 transition-all hover:border-emerald-400/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]">
+    <article className="panel group flex flex-col p-5 transition-all hover:border-accent/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
           <div
             className={`grid size-10 shrink-0 place-items-center rounded-xl border ${
               unassigned
                 ? "border-amber-400/20 bg-amber-400/8 text-amber-400"
-                : "border-emerald-400/20 bg-emerald-400/8 text-emerald-400"
+                : "border-accent/20 bg-accent/8 text-accent"
             }`}
           >
             {unassigned ? <Inbox size={16} /> : <MapPin size={16} />}
@@ -133,7 +133,7 @@ export function StorageLocationCard({
           )}
         </div>
         <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400">
+          <p className="inline-flex items-center gap-1 text-xs font-medium text-accent">
             {m.common.viewLots} <ArrowUpRight size={12} />
           </p>
         </div>
@@ -169,7 +169,7 @@ function RenameForm({
       <div className="flex items-center gap-2">
         <button
           disabled={pending}
-          className="rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-50"
+          className="rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? m.common.saving : m.common.save}
         </button>
@@ -234,7 +234,7 @@ function MergeForm({
       <div className="flex items-center gap-2">
         <button
           disabled={pending}
-          className="rounded-lg bg-emerald-400 px-2.5 py-1 text-xs font-semibold text-black hover:bg-emerald-300 disabled:opacity-50"
+          className="rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-accent-ink hover:bg-accent-hover disabled:opacity-50"
         >
           {pending ? m.common.saving : m.storage.mergeCta}
         </button>
@@ -247,7 +247,7 @@ function MergeForm({
         </button>
       </div>
       {state.error && <p className="text-xs text-rose-400">{state.error}</p>}
-      {state.notice && <p className="text-xs text-emerald-400">{state.notice}</p>}
+      {state.notice && <p className="text-xs text-accent">{state.notice}</p>}
     </form>
   );
 }

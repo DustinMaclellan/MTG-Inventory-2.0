@@ -66,7 +66,7 @@ export function LandingDashboardPreview({
 
       <section className="panel relative overflow-hidden p-6 sm:p-8">
         <div
-          className="pointer-events-none absolute -right-24 -top-24 h-[350px] w-[350px] rounded-full bg-emerald-400/6 blur-[80px]"
+          className="pointer-events-none absolute -right-24 -top-24 h-[350px] w-[350px] rounded-full bg-accent/6 blur-[80px]"
         />
         <p className="text-xs font-medium uppercase tracking-wider text-zinc-600">
           {m.dashboard.totalValue}
@@ -107,7 +107,7 @@ export function LandingDashboardPreview({
             <h2 className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
               {m.dashboard.recentlyAdded}
             </h2>
-            <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+            <span className="flex items-center gap-1 text-xs font-medium text-accent">
               {m.dashboard.viewAll} <ArrowUpRight size={12} />
             </span>
           </div>

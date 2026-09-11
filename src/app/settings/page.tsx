@@ -5,6 +5,8 @@ import { LanguageForm } from "@/components/locale-switcher";
 import { dateLocale, getMessages, isLocale, pickPlural } from "@/i18n";
 import { requireUser } from "@/lib/auth";
 import { hasEntitlement, trialDaysRemaining } from "@/lib/entitlements";
+import { AccentForm } from "@/components/accent-form";
+import { isAccent } from "@/lib/accent";
 import { PasswordForm, PreferencesForm, ProfileForm } from "./settings-forms";
 
 export const metadata = { title: "Settings" };
@@ -40,6 +42,12 @@ export default async function SettingsPage() {
             <h2 className="text-sm font-semibold">{m.settings.language}</h2>
             <p className="mt-1 mb-5 text-sm text-zinc-500">{m.settings.languageBody}</p>
             <LanguageForm />
+          </section>
+
+          <section className="panel p-6">
+            <h2 className="text-sm font-semibold">{m.settings.appearance}</h2>
+            <p className="mt-1 mb-5 text-sm text-zinc-500">{m.settings.appearanceBody}</p>
+            <AccentForm accent={isAccent(user.preferredAccent) ? user.preferredAccent : "emerald"} />
           </section>
 
           <section className="panel p-6">

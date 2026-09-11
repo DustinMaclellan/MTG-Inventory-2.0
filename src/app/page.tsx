@@ -11,6 +11,7 @@ import {
   Sparkles,
   Wallet,
 } from "lucide-react";
+import { LandingAccentLock } from "@/components/landing-accent-lock";
 import { LandingDashboardPreview } from "@/components/landing-dashboard-preview";
 import { MarketingShell } from "@/components/marketing-shell";
 import { interpolate } from "@/i18n";
@@ -40,10 +41,11 @@ export default async function LandingPage() {
 
   return (
     <MarketingShell>
+      <LandingAccentLock />
       <section className="relative mx-auto max-w-6xl px-5 py-20 sm:py-32">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="absolute -left-48 -top-32 h-[700px] w-[700px] rounded-full bg-emerald-500/6 blur-[130px]" />
-          <div className="absolute -right-32 top-16 h-[500px] w-[500px] rounded-full bg-emerald-500/4 blur-[110px]" />
+          <div className="absolute -left-48 -top-32 h-[700px] w-[700px] rounded-full bg-accent/6 blur-[130px]" />
+          <div className="absolute -right-32 top-16 h-[500px] w-[500px] rounded-full bg-accent/4 blur-[110px]" />
         </div>
 
         <div className="badge mb-6 w-fit">
@@ -74,7 +76,7 @@ export default async function LandingPage() {
         <ul className="mt-8 flex flex-wrap gap-x-6 gap-y-2">
           {trustItems.map((item) => (
             <li key={item} className="flex items-center gap-2 text-sm text-zinc-500">
-              <Check size={13} className="shrink-0 text-emerald-500" aria-hidden />
+              <Check size={13} className="shrink-0 text-accent" aria-hidden />
               {item}
             </li>
           ))}
@@ -100,9 +102,9 @@ export default async function LandingPage() {
           {features.map(({ icon: Icon, title, body }) => (
             <article
               key={title}
-              className="panel group p-6 transition-all duration-200 hover:border-emerald-400/15 hover:shadow-[0_24px_64px_rgba(0,0,0,.3)]"
+              className="panel group p-6 transition-all duration-200 hover:border-accent/15 hover:shadow-[0_24px_64px_rgba(0,0,0,.3)]"
             >
-              <span className="grid size-10 place-items-center rounded-xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400 transition-colors group-hover:bg-emerald-400/12">
+              <span className="grid size-10 place-items-center rounded-xl border border-accent/20 bg-accent/8 text-accent transition-colors group-hover:bg-accent/12">
                 <Icon size={18} />
               </span>
               <h3 className="mt-5 text-[15px] font-semibold">{title}</h3>
@@ -115,7 +117,7 @@ export default async function LandingPage() {
       <section className="mx-auto max-w-6xl px-5 pb-28">
         <div className="panel relative overflow-hidden px-8 py-12 sm:px-12 text-center">
           <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[300px] w-[600px] rounded-full bg-emerald-400/6 blur-[80px]" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[300px] w-[600px] rounded-full bg-accent/6 blur-[80px]" />
           </div>
 
           <div className="relative">
@@ -140,10 +142,10 @@ export default async function LandingPage() {
             </div>
             <div className="mt-6 flex justify-center gap-5">
               <span className="flex items-center gap-1.5 text-xs text-zinc-600">
-                <Lock size={11} className="text-emerald-600" /> {m.marketing.privateAccount}
+                <Lock size={11} className="text-accent" /> {m.marketing.privateAccount}
               </span>
               <span className="flex items-center gap-1.5 text-xs text-zinc-600">
-                <Check size={11} className="text-emerald-600" /> {m.marketing.cancelAnytime}
+                <Check size={11} className="text-accent" /> {m.marketing.cancelAnytime}
               </span>
             </div>
           </div>

@@ -12,7 +12,7 @@ export default function ErrorPage({
   return (
     <div className="grid min-h-screen place-items-center px-5">
       <div className="max-w-md text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
           Mystic Ledger
         </p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{m.errors.unexpected}</h1>

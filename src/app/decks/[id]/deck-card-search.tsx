@@ -180,7 +180,7 @@ function SearchResultRow({
             min="1"
             max="99"
             defaultValue="1"
-            className="w-14 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-center text-sm outline-none focus:border-emerald-400/50"
+            className="w-14 rounded-lg border border-white/10 bg-black/50 px-2 py-1.5 text-center text-sm outline-none focus:border-accent/50"
             aria-label={m.decks.qty}
           />
 
@@ -189,7 +189,7 @@ function SearchResultRow({
             className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors ${
               alreadyAdded
                 ? "border border-emerald-400/30 text-emerald-500 cursor-default"
-                : "bg-emerald-400 text-black hover:bg-emerald-300 disabled:opacity-50"
+                : "bg-accent text-accent-ink hover:bg-accent-hover disabled:opacity-50"
             }`}
           >
             {alreadyAdded ? (

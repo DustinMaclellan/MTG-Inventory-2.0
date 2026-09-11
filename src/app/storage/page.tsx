@@ -35,7 +35,7 @@ export default async function StoragePage() {
 
         {!locations.length ? (
           <div className="panel px-5 py-20 text-center">
-            <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400">
+            <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-accent/20 bg-accent/8 text-accent">
               <Archive size={22} />
             </div>
             <p className="font-semibold">{m.storage.emptyTitle}</p>

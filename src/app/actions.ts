@@ -16,11 +16,13 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { appUrl } from "@/lib/app-url";
+import { persistAccentCookie } from "@/lib/accent-cookie";
+import { isAccent } from "@/lib/accent";
 import { persistLocaleCookie } from "@/i18n/cookie";
 import { isLocale } from "@/i18n/config";
 import { getMessages, interpolate, type Messages } from "@/i18n";
 import { getRequestLocale } from "@/i18n/request";
-import { SESSION_COOKIE, trialEndsAtFrom } from "@/lib/constants";
+import { ACCENT_COOKIE, SESSION_COOKIE, trialEndsAtFrom } from "@/lib/constants";
 import { db } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/email";
 import {
@@ -56,6 +58,21 @@ export async function setLocaleAction(formData: FormData) {
     await db.user.update({
       where: { id: user.id },
       data: { preferredLocale: locale },
+    });
+  }
+  revalidatePath("/", "layout");
+}
+
+export async function setAccentAction(formData: FormData) {
+  const accent = formData.get("accent");
+  if (!isAccent(accent)) return;
+
+  await persistAccentCookie(accent);
+  const user = await getCurrentUser();
+  if (user) {
+    await db.user.update({
+      where: { id: user.id },
+      data: { preferredAccent: accent },
     });
   }
   revalidatePath("/", "layout");
@@ -110,6 +127,8 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
   if (exists) return { error: m.errors.accountExists };
 
   const locale = await getRequestLocale();
+  const cookieAccent = (await cookies()).get(ACCENT_COOKIE)?.value;
+  const accent = isAccent(cookieAccent) ? cookieAccent : undefined;
   const user = await db.$transaction(async (tx) => {
     const created = await tx.user.create({
       data: {
@@ -118,6 +137,7 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
         passwordHash: await hashPassword(parsed.data.password),
         trialEndsAt: trialEndsAtFrom(),
         preferredLocale: locale,
+        ...(accent ? { preferredAccent: accent } : {}),
       },
     });
     await tx.collection.create({
@@ -126,6 +146,7 @@ export async function registerAction(_: FormState, formData: FormData): Promise<
     return created;
   });
   await persistLocaleCookie(locale);
+  await persistAccentCookie(isAccent(user.preferredAccent) ? user.preferredAccent : "emerald");
   await createSession(user.id);
   redirect("/dashboard");
 }
@@ -142,6 +163,7 @@ export async function loginAction(_: FormState, formData: FormData): Promise<For
     return { error: m.errors.invalidAuth };
   }
   await persistLocaleCookie(isLocale(user.preferredLocale) ? user.preferredLocale : "en");
+  await persistAccentCookie(isAccent(user.preferredAccent) ? user.preferredAccent : "emerald");
   await createSession(user.id);
   redirect("/dashboard");
 }

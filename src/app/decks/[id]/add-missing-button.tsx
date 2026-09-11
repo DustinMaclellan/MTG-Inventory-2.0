@@ -20,12 +20,12 @@ export function AddMissingButton({ deckId, count }: { deckId: string; count: num
       {count > 0 && (
         <button
           disabled={pending}
-          className="text-xs text-zinc-500 hover:text-emerald-400 disabled:opacity-50 transition-colors"
+          className="text-xs text-zinc-500 hover:text-accent disabled:opacity-50 transition-colors"
         >
           {pending ? m.common.saving : interpolate(m.decks.addAllMissing, { count })}
         </button>
       )}
-      {state.notice && <p className="text-xs text-emerald-400">{state.notice}</p>}
+      {state.notice && <p className="text-xs text-accent">{state.notice}</p>}
       {state.error && <p className="text-xs text-rose-400">{state.error}</p>}
     </form>
   );

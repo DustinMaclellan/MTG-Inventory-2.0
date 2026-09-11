@@ -80,7 +80,7 @@ export function MobileNav() {
             key={href}
             href={href}
             className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors ${
-              active ? "text-emerald-400" : "text-zinc-500"
+              active ? "text-accent" : "text-zinc-500"
             }`}
           >
             <Icon size={19} />

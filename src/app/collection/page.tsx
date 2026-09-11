@@ -146,14 +146,14 @@ export default async function CollectionPage({
               name="q"
               defaultValue={q}
               placeholder={m.collection.searchPlaceholder}
-              className="w-full rounded-xl border border-white/8 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-zinc-700 focus:border-emerald-400/40"
+              className="w-full rounded-xl border border-white/8 bg-black/30 py-2.5 pl-9 pr-3 text-sm outline-none placeholder:text-zinc-700 focus:border-accent/40"
             />
           </label>
 
           <select
             name="storage"
             defaultValue={storage}
-            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-accent/40"
           >
             <option value="">{m.collection.allStorage}</option>
             <option value="unassigned">{m.common.unassigned}</option>
@@ -165,7 +165,7 @@ export default async function CollectionPage({
           <select
             name="condition"
             defaultValue={condition}
-            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-accent/40"
           >
             <option value="">{m.collection.allConditions}</option>
             <option value="NEAR_MINT">{m.condition.NEAR_MINT}</option>
@@ -178,7 +178,7 @@ export default async function CollectionPage({
           <select
             name="finish"
             defaultValue={finish}
-            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-emerald-400/40"
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-accent/40"
           >
             <option value="">{m.collection.allFinishes}</option>
             <option value="NONFOIL">{m.finish.NONFOIL}</option>

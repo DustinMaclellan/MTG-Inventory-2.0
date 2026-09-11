@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { LocaleProvider } from "@/i18n/provider";
 import { getRequestMessages } from "@/i18n/request";
 import { appMetadataBase } from "@/lib/app-url";
+import { getRequestAccent } from "@/lib/accent-request";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -43,10 +44,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { locale } = await getRequestMessages();
+  const accent = await getRequestAccent();
 
   return (
     <html
       lang={locale}
+      data-accent={accent}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full">

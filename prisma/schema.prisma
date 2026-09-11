@@ -39,6 +39,15 @@ enum AppLocale {
   fr
 }
 
+enum AccentTheme {
+  emerald
+  sky
+  violet
+  amber
+  rose
+  cyan
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -54,6 +63,7 @@ model User {
   displayName          String
   preferredCurrency    Currency           @default(USD)
   preferredLocale      AppLocale          @default(en)
+  preferredAccent      AccentTheme        @default(emerald)
   trialEndsAt          DateTime
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?            @unique

@@ -34,7 +34,7 @@ export default async function DecksPage() {
 
         {decks.length === 0 ? (
           <div className="panel px-5 py-20 text-center">
-            <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400">
+            <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-accent/20 bg-accent/8 text-accent">
               <Boxes size={22} />
             </div>
             <p className="font-semibold">{m.decks.emptyTitle}</p>
@@ -51,11 +51,11 @@ export default async function DecksPage() {
               <Link
                 key={deck.id}
                 href={`/decks/${deck.id}`}
-                className="panel group flex flex-col gap-3 p-5 transition-all hover:border-emerald-400/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]"
+                className="panel group flex flex-col gap-3 p-5 transition-all hover:border-accent/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold leading-snug group-hover:text-emerald-300 transition-colors">
+                    <p className="truncate font-semibold leading-snug group-hover:text-accent transition-colors">
                       {deck.name}
                     </p>
                     {deck.format && (

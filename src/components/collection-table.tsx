@@ -191,7 +191,7 @@ export function CollectionTable({
                   type="checkbox"
                   checked={allChecked}
                   onChange={toggleAll}
-                  className="accent-emerald-400 cursor-pointer"
+                  className="cursor-pointer"
                   aria-label={m.collection.selectAll}
                 />
               </th>
@@ -228,9 +228,9 @@ export function CollectionTable({
                   id={`lot-${item.id}`}
                   className={`transition-colors cursor-pointer ${
                     isFocused
-                      ? "bg-emerald-400/8 ring-1 ring-inset ring-emerald-400/25"
+                      ? "bg-accent/8 ring-1 ring-inset ring-accent/25"
                       : isSelected
-                        ? "bg-emerald-400/4"
+                        ? "bg-accent/4"
                         : "hover:bg-white/[.018]"
                   }`}
                   onClick={(e) => {
@@ -240,13 +240,13 @@ export function CollectionTable({
                 >
                   <td className="px-4 py-3">
                     <input type="checkbox" checked={isSelected} onChange={() => toggle(item.id)}
-                      className="accent-emerald-400 cursor-pointer" />
+                      className="cursor-pointer" />
                   </td>
                   <td className="px-4 py-3">
                     <button
                       type="button"
                       onClick={() => setEditing(item)}
-                      className="flex items-center gap-3 text-left hover:text-emerald-300 transition-colors"
+                      className="flex items-center gap-3 text-left hover:text-accent transition-colors"
                     >
                       <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded bg-zinc-900">
                         {item.cardPrinting.imageSmallUrl && (
@@ -280,7 +280,7 @@ export function CollectionTable({
                           ...(currentQ ? { q: currentQ } : {}),
                           storage: item.storageLocation,
                         }).toString()}`}
-                        className="hover:text-emerald-400 transition-colors"
+                        className="hover:text-accent transition-colors"
                       >
                         {item.storageLocation}
                       </Link>
@@ -346,7 +346,7 @@ function SortBtn({
   return (
     <button
       onClick={() => onSort(col)}
-      className={`flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors hover:text-zinc-300 ${active ? "text-emerald-400" : "text-zinc-600"}`}
+      className={`flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors hover:text-zinc-300 ${active ? "text-accent" : "text-zinc-600"}`}
     >
       {label}
       {active
@@ -380,7 +380,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
         <div className="flex items-center gap-0 divide-x divide-white/8">
 
           {/* Label */}
-          <span className="px-4 py-3 text-sm font-semibold text-emerald-300 whitespace-nowrap">
+          <span className="px-4 py-3 text-sm font-semibold text-accent whitespace-nowrap">
             {pickPlural(count, m.collection.lotsSelected, m.collection.lotsSelectedPlural)}
           </span>
 
@@ -389,13 +389,13 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
             {selectedIds.map((id) => <input key={id} type="hidden" name="ids" value={id} />)}
             <input
               name="storageLocation"
-              className="h-8 w-36 rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-emerald-400/50"
+              className="h-8 w-36 rounded-lg border border-white/10 bg-black/40 px-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 outline-none focus:border-accent/50"
               placeholder={m.collection.storagePlaceholder}
             />
             <select
               name="finish"
               defaultValue=""
-              className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-emerald-400/50"
+              className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-accent/50"
             >
               <option value="">{m.collection.finishPlaceholder}</option>
               <option value="NONFOIL">{m.finish.NONFOIL}</option>
@@ -405,7 +405,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
             <select
               name="condition"
               defaultValue=""
-              className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-emerald-400/50"
+              className="h-8 rounded-lg border border-white/10 bg-black/40 px-2 text-sm text-zinc-300 outline-none focus:border-accent/50"
             >
               <option value="">{m.collection.conditionPlaceholder}</option>
               {ALL_CONDITIONS.map((c) => (
@@ -416,7 +416,7 @@ function BulkBar({ selectedIds, onDone }: { selectedIds: string[]; onDone: () =>
             </select>
             <button
               disabled={pending}
-              className="flex h-8 items-center gap-1.5 rounded-lg bg-emerald-400 px-3 text-sm font-bold text-black hover:bg-emerald-300 disabled:opacity-50 transition-colors"
+              className="flex h-8 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-bold text-accent-ink hover:bg-accent-hover disabled:opacity-50 transition-colors"
             >
               <Check size={13} />
               {updatePending ? m.common.saving : m.common.apply}

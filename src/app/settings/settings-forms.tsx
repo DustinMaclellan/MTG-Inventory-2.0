@@ -21,7 +21,7 @@ function FormAlert({ state }: { state: FormState }) {
   }
   if (state.notice) {
     return (
-      <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/8 px-4 py-3 text-sm text-emerald-300">
+      <p role="status" className="rounded-xl border border-accent/20 bg-accent/8 px-4 py-3 text-sm text-accent">
         {state.notice}
       </p>
     );

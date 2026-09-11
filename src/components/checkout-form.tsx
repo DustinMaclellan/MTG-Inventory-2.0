@@ -36,7 +36,7 @@ export function CheckoutForm() {
               <span className="text-3xl font-semibold">${PLAN_MONTHLY_USD}</span>
               <span className="mb-0.5 text-zinc-500">{m.subscribe.perMo}</span>
             </div>
-            <p className="mt-4 text-sm font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors">
+            <p className="mt-4 text-sm font-medium text-accent group-hover:text-accent-hover transition-colors">
               {pending ? m.subscribe.redirecting : m.subscribe.continue}
             </p>
           </button>
@@ -46,19 +46,19 @@ export function CheckoutForm() {
           <input type="hidden" name="interval" value="yearly" />
           <button
             disabled={pending}
-            className="group panel relative w-full overflow-hidden border-emerald-400/20 p-6 text-left transition-all duration-200 hover:border-emerald-400/35 hover:shadow-[0_20px_50px_rgba(52,211,153,.08)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="group panel relative w-full overflow-hidden border-accent/20 p-6 text-left transition-all duration-200 hover:border-accent/35 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <div className="absolute inset-0 bg-emerald-400/3 pointer-events-none" aria-hidden />
+            <div className="absolute inset-0 bg-accent/3 pointer-events-none" aria-hidden />
             <div className="relative">
               <div className="flex items-center justify-between">
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-400">{m.marketing.yearly}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">{m.marketing.yearly}</p>
                 <span className="badge text-[10px]">{interpolate(m.marketing.savePct, { pct: SAVINGS_PCT })}</span>
               </div>
               <div className="mt-3 flex items-end gap-1">
                 <span className="text-3xl font-semibold">${PLAN_YEARLY_USD}</span>
                 <span className="mb-0.5 text-zinc-500">{m.subscribe.perYr}</span>
               </div>
-              <p className="mt-4 text-sm font-medium text-emerald-400 group-hover:text-emerald-300 transition-colors">
+              <p className="mt-4 text-sm font-medium text-accent group-hover:text-accent-hover transition-colors">
                 {pending ? m.subscribe.redirecting : m.subscribe.continue}
               </p>
             </div>

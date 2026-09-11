@@ -53,7 +53,7 @@ export default async function DashboardPage() {
 
         <section className="panel relative overflow-hidden p-6 sm:p-8">
           <div
-            className="pointer-events-none absolute -right-24 -top-24 h-[350px] w-[350px] rounded-full bg-emerald-400/6 blur-[80px]"
+            className="pointer-events-none absolute -right-24 -top-24 h-[350px] w-[350px] rounded-full bg-accent/6 blur-[80px]"
             aria-hidden
           />
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-600">
@@ -113,7 +113,7 @@ export default async function DashboardPage() {
               </h2>
               <Link
                 href="/collection"
-                className="flex items-center gap-1 text-xs font-medium text-emerald-400 hover:text-emerald-300 transition-colors"
+                className="flex items-center gap-1 text-xs font-medium text-accent hover:text-accent-hover transition-colors"
               >
                 {m.dashboard.viewAll} <ArrowUpRight size={12} />
               </Link>
@@ -201,7 +201,7 @@ export default async function DashboardPage() {
 function EmptyState({ m }: { m: Messages }) {
   return (
     <div className="px-5 py-16 text-center">
-      <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-emerald-400/20 bg-emerald-400/8 text-emerald-400">
+      <div className="mx-auto mb-5 grid size-12 place-items-center rounded-2xl border border-accent/20 bg-accent/8 text-accent">
         <Sparkles size={22} />
       </div>
       <p className="font-semibold">{m.dashboard.emptyTitle}</p>

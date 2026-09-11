@@ -25,12 +25,12 @@ export function ForgotPasswordForm({
         </p>
       )}
       {state.notice && (
-        <p className="rounded-lg bg-emerald-500/10 px-3 py-2 text-sm text-emerald-200">{state.notice}</p>
+        <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-accent">{state.notice}</p>
       )}
       {state.devResetUrl && (
         <p className="rounded-lg bg-white/5 px-3 py-2 text-sm text-zinc-300">
           {m.auth.devResetLink}{" "}
-          <Link href={state.devResetUrl} className="text-emerald-400 break-all">
+          <Link href={state.devResetUrl} className="text-accent break-all">
             {state.devResetUrl}
           </Link>
         </p>
@@ -39,7 +39,7 @@ export function ForgotPasswordForm({
         {pending ? m.common.pleaseWait : m.auth.sendLink}
       </button>
       <p className="text-center text-sm text-zinc-500">
-        <Link className="text-emerald-400 hover:text-emerald-300" href="/login">
+        <Link className="text-accent hover:text-accent-hover" href="/login">
           {m.auth.backToSignIn}
         </Link>
       </p>

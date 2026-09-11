@@ -22,11 +22,18 @@ function isProtected(pathname: string) {
 }
 
 export function proxy(request: NextRequest) {
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  const next = () =>
+    NextResponse.next({
+      request: { headers: requestHeaders },
+    });
+
   if (!isProtected(request.nextUrl.pathname)) {
-    return NextResponse.next();
+    return next();
   }
   if (request.cookies.get(SESSION_COOKIE)?.value) {
-    return NextResponse.next();
+    return next();
   }
   // Redirect to login. We intentionally do NOT include a ?next= redirect param
   // here: any future code that reads ?next= must validate it is same-origin
@@ -36,6 +43,11 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/",
+    "/login",
+    "/register",
+    "/forgot-password",
+    "/reset-password",
     "/dashboard",
     "/dashboard/:path*",
     "/collection",

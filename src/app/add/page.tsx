@@ -36,11 +36,11 @@ export default async function AddCardsPage({
         </header>
 
         {justAdded && (
-          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-200">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/10 px-4 py-3 text-sm text-accent">
             <span className="inline-flex items-center gap-2">
               <CheckCircle2 size={16} /> {m.add.added}
             </span>
-            <Link href="/collection" className="text-emerald-300 underline-offset-2 hover:underline">
+            <Link href="/collection" className="text-accent underline-offset-2 hover:underline">
               {m.add.viewCollection}
             </Link>
           </div>

@@ -52,7 +52,7 @@ export function LanguageForm() {
           type="submit"
           className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
             locale === "en"
-              ? "border-emerald-400/40 bg-emerald-400/8 text-emerald-100"
+              ? "border-accent/40 bg-accent/8 text-zinc-100"
               : "border-white/8 bg-white/[.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200"
           }`}
         >
@@ -65,7 +65,7 @@ export function LanguageForm() {
           type="submit"
           className={`w-full rounded-xl border px-4 py-3 text-left text-sm font-medium transition-colors ${
             locale === "fr"
-              ? "border-emerald-400/40 bg-emerald-400/8 text-emerald-100"
+              ? "border-accent/40 bg-accent/8 text-zinc-100"
               : "border-white/8 bg-white/[.02] text-zinc-400 hover:border-white/14 hover:text-zinc-200"
           }`}
         >

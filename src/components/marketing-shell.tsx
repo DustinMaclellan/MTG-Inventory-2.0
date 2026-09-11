@@ -18,7 +18,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       <header className="sticky top-0 z-20 border-b border-white/6 bg-[#080a0d]/88 backdrop-blur-md">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-3.5">
           <Link href="/" className="flex items-center gap-3 group">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-400 text-black shadow-[0_0_20px_rgba(52,211,153,.30)] transition-shadow group-hover:shadow-[0_0_28px_rgba(52,211,153,.45)]">
+            <span className="brand-mark grid size-9 shrink-0 place-items-center rounded-xl transition-shadow">
               <Sparkles size={18} />
             </span>
             <strong className="text-sm tracking-tight">Mystic Ledger</strong>
@@ -58,7 +58,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
       <footer className="border-t border-white/6 px-5 py-10 text-xs text-zinc-600">
         <div className="mx-auto max-w-6xl space-y-6">
           <Link href="/" className="flex items-center gap-2.5 w-fit">
-            <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-emerald-400 text-black">
+            <span className="brand-mark grid size-7 shrink-0 place-items-center rounded-lg">
               <Sparkles size={13} />
             </span>
             <strong className="text-xs text-zinc-400">Mystic Ledger</strong>
@@ -74,7 +74,7 @@ export async function MarketingShell({ children }: { children: React.ReactNode }
               <Link
                 key={link.href}
                 href={link.href}
-                className="hover:text-emerald-400 transition-colors"
+                className="hover:text-accent transition-colors"
               >
                 {link.label}
               </Link>
