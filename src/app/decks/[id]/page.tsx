@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { getMessages, interpolate, isLocale, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { allocateRowOwnership, deckOwnedTotals, uniqueCommanderPickerCards } from "@/lib/deck-commander";
 import { deckFormatAllowsCommander } from "@/lib/deck-formats";
 import { removeDeckCardAction } from "@/app/decks/actions";
 import { DeleteDeckButton } from "./delete-deck-button";
@@ -67,29 +68,27 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
     }
   }
 
-  const totalCards = deck.cards.reduce((s, dc) => s + dc.quantity, 0);
-  const ownedCards = deck.cards.reduce((s, dc) => {
-    if (!dc.cardPrintingId) return s;
-    const owned = ownedByPrintingFinish.get(`${dc.cardPrintingId}:${dc.finish}`) ?? 0;
-    return s + Math.min(owned, dc.quantity);
-  }, 0);
-  const missingCards = totalCards - ownedCards;
+  const { totalCards, ownedCards, missingCards } = deckOwnedTotals(
+    deck.cards,
+    ownedByPrintingFinish,
+  );
   const completionPct = totalCards > 0 ? Math.round((ownedCards / totalCards) * 100) : 0;
 
   const existingEntries = deck.cards
     .filter((dc): dc is typeof dc & { cardPrintingId: string } => Boolean(dc.cardPrintingId))
     .map((dc) => ({ printingId: dc.cardPrintingId, finish: dc.finish }));
 
+  const ownershipById = allocateRowOwnership(deck.cards, ownedByPrintingFinish);
   const withOwnership = deck.cards.map((dc) => {
-    const owned = dc.cardPrintingId
-      ? ownedByPrintingFinish.get(`${dc.cardPrintingId}:${dc.finish}`) ?? 0
-      : 0;
+    const ownership = ownershipById.get(dc.id) ?? {
+      ownedQty: 0,
+      fullyOwned: false,
+      partial: false,
+      missing: true,
+    };
     return {
       ...dc,
-      ownedQty: owned,
-      fullyOwned: owned >= dc.quantity,
-      partial: owned > 0 && owned < dc.quantity,
-      missing: owned === 0,
+      ...ownership,
     };
   });
 
@@ -156,76 +155,74 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
 
         </div>
 
-        {/* ── Main grid ───────────────────────────────────── */}
-        <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+        <section className="mb-6">
+          <div className="panel p-4 sm:p-5">
+            <p className="text-sm font-semibold">{m.decks.addCards}</p>
+            <p className="mt-1 mb-4 text-sm leading-6 text-zinc-500">{m.decks.addHint}</p>
+            <DeckCardSearch
+              deckId={deck.id}
+              existingEntries={existingEntries}
+              autoFocus={deck.cards.length === 0}
+            />
+          </div>
+        </section>
 
-          {/* ── Card list ──────────────────────────────────── */}
-          <section className="space-y-4">
-            {deck.cards.length === 0 ? (
-              <div className="panel px-5 py-16 text-center">
-                <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl border border-zinc-700/40 bg-zinc-800/40 text-zinc-500">
-                  <Boxes size={22} />
-                </div>
-                <p className="font-semibold">{m.decks.noCards}</p>
-                <p className="mt-2 text-sm text-zinc-500">
-                  {m.decks.noCardsBody}
-                </p>
+        <section className="space-y-4">
+          {deck.cards.length === 0 ? (
+            <div className="panel px-5 py-16 text-center">
+              <div className="mx-auto mb-4 grid size-12 place-items-center rounded-2xl border border-zinc-700/40 bg-zinc-800/40 text-zinc-500">
+                <Boxes size={22} />
               </div>
-            ) : (
-              <>
-                {allowsCommander && (
-                  <div>
-                    <DeckCommanderPicker
-                      deckId={deck.id}
-                      commanderId={commander?.id ?? null}
-                      cards={withOwnership.map((dc) => ({
+              <p className="font-semibold">{m.decks.noCards}</p>
+              <p className="mt-2 text-sm text-zinc-500">
+                {m.decks.noCardsBody}
+              </p>
+            </div>
+          ) : (
+            <>
+              {allowsCommander && (
+                <div>
+                  <DeckCommanderPicker
+                    deckId={deck.id}
+                    commanderId={commander?.id ?? null}
+                    cards={uniqueCommanderPickerCards(
+                      withOwnership.map((dc) => ({
                         id: dc.id,
+                        cardId: dc.cardId,
+                        cardPrintingId: dc.cardPrintingId,
                         name: dc.card.name,
                         finish: dc.finish,
-                      }))}
-                    />
-                    {commander && (
-                      <CardGroup rows={[commander]} deckId={deck.id} showQuantity={false} m={m} />
+                      })),
+                      commander?.id ?? null,
                     )}
-                  </div>
-                )}
-                <CardGroup
-                  label={
-                    allowsCommander
-                      ? interpolate(m.decks.mainboard, { count: mainboard.length })
-                      : undefined
-                  }
-                  rows={mainboard}
-                  deckId={deck.id}
-                  showQuantity
-                  m={m}
-                />
-              </>
-            )}
-          </section>
+                  />
+                  {commander && (
+                    <CardGroup rows={[commander]} deckId={deck.id} showQuantity={false} m={m} />
+                  )}
+                </div>
+              )}
+              <CardGroup
+                label={
+                  allowsCommander
+                    ? interpolate(m.decks.mainboard, {
+                        count: mainboard.reduce((sum, dc) => sum + dc.quantity, 0),
+                      })
+                    : undefined
+                }
+                rows={mainboard}
+                deckId={deck.id}
+                showQuantity
+                m={m}
+              />
+            </>
+          )}
+        </section>
 
-          {/* ── Sidebar ───────────────────────────────────── */}
-          <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
-            {/* Search */}
-            <div className="panel flex flex-col p-5">
-              <p className="mb-1 text-sm font-semibold">{m.decks.addCards}</p>
-              <p className="mb-4 text-xs text-zinc-600">
-                {m.decks.addHint}
-              </p>
-              {/* Results scroll inside the panel — never pushes Delete down */}
-              <div className="max-h-[60vh] overflow-y-auto">
-                <DeckCardSearch deckId={deck.id} existingEntries={existingEntries} />
-              </div>
-            </div>
-
-            {/* Delete */}
-            <div className="panel p-5">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-700">
-                {m.decks.danger}
-              </p>
-              <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
-            </div>
-          </aside>
+        <div className="mt-8 panel p-5">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-zinc-700">
+            {m.decks.danger}
+          </p>
+          <DeleteDeckButton deckId={deck.id} deckName={deck.name} />
         </div>
       </div>
     </AppShell>

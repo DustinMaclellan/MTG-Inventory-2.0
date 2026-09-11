@@ -128,13 +128,14 @@ export default async function CollectionPage({
   return (
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <header className="mb-8 flex items-end justify-between gap-4">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-zinc-500">
               {pickPlural(total, m.collection.lots, m.collection.lotsPlural)}
               {filtersActive ? m.collection.matchingFilters : ""}
             </p>
             <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">{m.collection.title}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{m.collection.intro}</p>
           </div>
           <Link href="/add" className="button-primary text-sm">
             <Plus size={16} /> {m.common.addCards}

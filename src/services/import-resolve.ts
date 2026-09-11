@@ -264,12 +264,12 @@ function hintFor(row: CsvInventoryRow) {
 export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
   recognized: RecognizedImportRow[];
   choices: ImportChoice[];
-  unresolved: Array<{ row: number; cardName: string; printing: string }>;
+  unresolved: Array<{ row: number; cardName: string; printing: string; line?: string }>;
   duplicates: number;
 }> {
   const recognized: RecognizedImportRow[] = [];
   const choices: ImportChoice[] = [];
-  const unresolved: Array<{ row: number; cardName: string; printing: string }> = [];
+  const unresolved: Array<{ row: number; cardName: string; printing: string; line?: string }> = [];
   const seen = new Set<string>();
   let duplicates = 0;
   const cache = new Map<string, Awaited<ReturnType<typeof loadPrintings>>>();
@@ -292,6 +292,7 @@ export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
         row: row.row,
         cardName: row.cardName,
         printing: hintFor(row),
+        line: row.source ?? row.cardName,
       });
       continue;
     }

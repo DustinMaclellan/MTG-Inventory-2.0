@@ -22,10 +22,11 @@ export default async function StoragePage() {
   return (
     <AppShell user={user}>
       <div className="mx-auto max-w-7xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-zinc-500">{m.storage.eyebrow}</p>
             <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">{m.storage.title}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{m.storage.intro}</p>
           </div>
           <Link href="/add" className="button-primary text-sm">
             <Plus size={16} />

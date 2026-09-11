@@ -156,6 +156,7 @@ export function ImportForm() {
         <textarea
           name="csv"
           className="field mt-3 min-h-72 resize-y font-mono text-xs leading-6"
+          placeholder={m.imports.listPlaceholder}
           value={list}
           onChange={(event) => setList(event.target.value)}
         />
@@ -172,6 +173,33 @@ export function ImportForm() {
           <Stat label={m.imports.unresolved} value={state.unresolved?.length ?? 0} tone="text-amber-400" />
           <Stat label={m.imports.invalid} value={state.invalid?.length ?? 0} tone="text-rose-400" />
         </div>
+        {!!state.invalid?.length && (
+          <IssueList
+            title={m.imports.invalid}
+            hint={m.imports.invalidHint}
+            tone="rose"
+            items={state.invalid.map((row) => ({
+              key: `invalid-${row.row}`,
+              line: row.line,
+              detail: row.message,
+            }))}
+          />
+        )}
+        {!!state.unresolved?.length && (
+          <IssueList
+            title={m.imports.unresolved}
+            hint={m.imports.unresolvedHint}
+            tone="amber"
+            items={state.unresolved.map((row) => {
+              const hasSetHint = row.printing && row.printing !== row.cardName;
+              return {
+                key: `unresolved-${row.row}`,
+                line: row.line ?? row.cardName,
+                detail: hasSetHint ? m.imports.noMatchingPrinting : m.imports.notInCatalog,
+              };
+            })}
+          />
+        )}
         {choices.length > 0 && (
           <ul className="mt-5 space-y-3">
             <li className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
@@ -285,28 +313,6 @@ export function ImportForm() {
             })}
           </ul>
         )}
-        {!!state.unresolved?.length && (
-          <ul className="space-y-2 text-xs text-amber-300">
-            {state.unresolved.map((row) => (
-              <li key={row.row}>
-                {interpolate(m.imports.rowUnresolved, {
-                  row: row.row,
-                  card: row.cardName,
-                  printing: row.printing,
-                })}
-              </li>
-            ))}
-          </ul>
-        )}
-        {!!state.invalid?.length && (
-          <ul className="space-y-2 text-xs text-rose-300">
-            {state.invalid.map((row) => (
-              <li key={row.row}>
-                {interpolate(m.imports.rowInvalid, { row: row.row, message: row.message })}
-              </li>
-            ))}
-          </ul>
-        )}
         {canImport && (
           <form action={commitImportAction} className="mt-5">
             <input
@@ -330,7 +336,7 @@ export function ImportForm() {
             </button>
           </form>
         )}
-        {!state.recognized && !state.choices && (
+        {!state.recognized && !state.choices && !state.unresolved && !state.invalid && (
           <p className="mt-5 text-sm leading-6 text-zinc-500">{m.imports.previewHint}</p>
         )}
       </section>
@@ -338,11 +344,50 @@ export function ImportForm() {
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
+function Stat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone: string;
+}) {
   return (
     <div className="rounded-xl bg-white/[.03] p-4">
       <p className={`text-2xl font-semibold ${tone}`}>{value}</p>
       <p className="mt-1 text-xs text-zinc-600">{label}</p>
+    </div>
+  );
+}
+
+function IssueList({
+  title,
+  hint,
+  tone,
+  items,
+}: {
+  title: string;
+  hint: string;
+  tone: "amber" | "rose";
+  items: Array<{ key: string; detail: string; line?: string }>;
+}) {
+  const box =
+    tone === "amber"
+      ? "border-amber-400/20 bg-amber-400/5 text-amber-200"
+      : "border-rose-400/20 bg-rose-500/5 text-rose-200";
+  return (
+    <div className={`mt-5 rounded-xl border px-4 py-3 ${box}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wider">{title}</p>
+      <p className="mt-1 text-[11px] leading-5 text-zinc-400">{hint}</p>
+      <ul className="mt-3 space-y-2.5 text-xs">
+        {items.map((item) => (
+          <li key={item.key}>
+            {item.line ? <p className="font-mono text-xs">{item.line}</p> : null}
+            <p className={item.line ? "mt-0.5 text-[11px] text-zinc-400" : undefined}>{item.detail}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

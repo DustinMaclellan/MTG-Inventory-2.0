@@ -8,6 +8,7 @@ import { getMessages, interpolate } from "@/i18n";
 import { getRequestLocale } from "@/i18n/request";
 import { requireEntitlement } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { planSetCommander, type CommanderPlan } from "@/lib/deck-commander";
 import { deckFormatAllowsCommander } from "@/lib/deck-formats";
 import { coerceFinish } from "@/lib/finish";
 import { scryfall } from "@/services/scryfall";
@@ -16,6 +17,41 @@ export type DeckFormState = { error?: string; notice?: string };
 
 async function t() {
   return getMessages(await getRequestLocale());
+}
+
+async function applyCommanderPlan(deckId: string, plan: CommanderPlan) {
+  if (plan.updates.length === 0 && plan.deletes.length === 0 && plan.creates.length === 0) {
+    return;
+  }
+
+  await db.$transaction(async (tx) => {
+    for (const update of plan.updates) {
+      await tx.deckCard.update({
+        where: { id: update.id },
+        data: {
+          ...(update.quantity !== undefined ? { quantity: update.quantity } : {}),
+          ...(update.isCommanderZone !== undefined
+            ? { isCommanderZone: update.isCommanderZone }
+            : {}),
+        },
+      });
+    }
+    if (plan.deletes.length > 0) {
+      await tx.deckCard.deleteMany({ where: { id: { in: plan.deletes } } });
+    }
+    for (const create of plan.creates) {
+      await tx.deckCard.create({
+        data: {
+          deckId,
+          cardId: create.cardId,
+          cardPrintingId: create.cardPrintingId,
+          finish: create.finish as Finish,
+          quantity: create.quantity,
+          isCommanderZone: create.isCommanderZone,
+        },
+      });
+    }
+  });
 }
 
 const deckSchema = z.object({
@@ -90,13 +126,17 @@ export async function addDeckCardAction(
   }
 
   const existing = printingId
-    ? await db.deckCard.findFirst({ where: { deckId, cardPrintingId: printingId, finish } })
-    : await db.deckCard.findFirst({ where: { deckId, cardId, cardPrintingId: null, finish } });
+    ? await db.deckCard.findFirst({
+        where: { deckId, cardPrintingId: printingId, finish, isCommanderZone: asCommander },
+      })
+    : await db.deckCard.findFirst({
+        where: { deckId, cardId, cardPrintingId: null, finish, isCommanderZone: asCommander },
+      });
 
   if (existing) {
     await db.deckCard.update({
       where: { id: existing.id },
-      data: { quantity, isCommanderZone: asCommander },
+      data: { quantity: Math.min(99, existing.quantity + quantity) },
     });
   } else {
     await db.deckCard.create({
@@ -151,10 +191,18 @@ export async function updateDeckAction(
   if (result.count === 0) return { error: (await t()).decks.invalidDeck };
 
   if (!deckFormatAllowsCommander(format)) {
-    await db.deckCard.updateMany({
+    const cards = await db.deckCard.findMany({
       where: { deckId: parsed.data.deckId },
-      data: { isCommanderZone: false },
+      select: {
+        id: true,
+        cardId: true,
+        cardPrintingId: true,
+        finish: true,
+        quantity: true,
+        isCommanderZone: true,
+      },
     });
+    await applyCommanderPlan(parsed.data.deckId, planSetCommander(cards, null));
   }
 
   revalidatePath("/decks");
@@ -184,21 +232,29 @@ export async function updateDeckCardAction(formData: FormData) {
   const data: { quantity?: number; isCommanderZone?: boolean } = {};
   if (parsed.data.isCommanderZone !== undefined) {
     if (!allowsCommander) return;
-    data.isCommanderZone = parsed.data.isCommanderZone === "true";
-    if (data.isCommanderZone) {
-      data.quantity = 1;
-      await db.deckCard.updateMany({
-        where: { deckId: deck.id, isCommanderZone: true },
-        data: { isCommanderZone: false },
-      });
-    }
+    const cards = await db.deckCard.findMany({
+      where: { deckId: deck.id },
+      select: {
+        id: true,
+        cardId: true,
+        cardPrintingId: true,
+        finish: true,
+        quantity: true,
+        isCommanderZone: true,
+      },
+    });
+    const selectedId = parsed.data.isCommanderZone === "true" ? parsed.data.deckCardId : null;
+    await applyCommanderPlan(deck.id, planSetCommander(cards, selectedId));
+    revalidatePath("/decks");
+    revalidatePath(`/decks/${deck.id}`);
+    return;
   }
   if (parsed.data.quantity !== undefined) {
     data.quantity = parsed.data.quantity;
   }
   if (Object.keys(data).length === 0) return;
 
-  if (data.quantity !== undefined && data.isCommanderZone !== true) {
+  if (data.quantity !== undefined) {
     const row = await db.deckCard.findFirst({
       where: { id: parsed.data.deckCardId, deckId: deck.id },
       select: { isCommanderZone: true },
@@ -230,17 +286,18 @@ export async function setDeckCommanderAction(formData: FormData) {
   });
   if (!deck || !deckFormatAllowsCommander(deck.format)) return;
 
-  await db.deckCard.updateMany({
-    where: { deckId: deck.id, isCommanderZone: true },
-    data: { isCommanderZone: false },
+  const cards = await db.deckCard.findMany({
+    where: { deckId: deck.id },
+    select: {
+      id: true,
+      cardId: true,
+      cardPrintingId: true,
+      finish: true,
+      quantity: true,
+      isCommanderZone: true,
+    },
   });
-
-  if (parsed.data.deckCardId) {
-    await db.deckCard.updateMany({
-      where: { id: parsed.data.deckCardId, deckId: deck.id },
-      data: { isCommanderZone: true, quantity: 1 },
-    });
-  }
+  await applyCommanderPlan(deck.id, planSetCommander(cards, parsed.data.deckCardId || null));
 
   revalidatePath("/decks");
   revalidatePath(`/decks/${deck.id}`);
@@ -284,25 +341,42 @@ export async function addAllMissingToCollectionAction(
 
   let added = 0;
   const addedScryfallIds: string[] = [];
+  const neededByPrintingFinish = new Map<
+    string,
+    { cardPrintingId: string; finish: Finish; printing: NonNullable<(typeof deck.cards)[number]["printing"]>; quantity: number }
+  >();
   for (const row of deck.cards) {
     if (!row.cardPrintingId || !row.printing) continue;
     const finish = coerceFinish(row.finish, row.printing.finishes);
-    const ownedKey = `${row.cardPrintingId}:${finish}`;
-    const needed = Math.max(0, row.quantity - (ownedByPrintingFinish.get(ownedKey) ?? 0));
+    const key = `${row.cardPrintingId}:${finish}`;
+    const current = neededByPrintingFinish.get(key);
+    if (current) current.quantity += row.quantity;
+    else {
+      neededByPrintingFinish.set(key, {
+        cardPrintingId: row.cardPrintingId,
+        finish,
+        printing: row.printing,
+        quantity: row.quantity,
+      });
+    }
+  }
+  for (const item of neededByPrintingFinish.values()) {
+    const ownedKey = `${item.cardPrintingId}:${item.finish}`;
+    const needed = Math.max(0, item.quantity - (ownedByPrintingFinish.get(ownedKey) ?? 0));
     if (needed === 0) continue;
     await db.inventoryItem.create({
       data: {
         collectionId: collection.id,
-        cardPrintingId: row.cardPrintingId,
+        cardPrintingId: item.cardPrintingId,
         quantity: needed,
         condition: Condition.NEAR_MINT,
-        finish,
+        finish: item.finish,
         purchaseCurrency: user.preferredCurrency,
       },
     });
     ownedByPrintingFinish.set(ownedKey, (ownedByPrintingFinish.get(ownedKey) ?? 0) + needed);
     added += needed;
-    addedScryfallIds.push(row.printing.scryfallId);
+    addedScryfallIds.push(item.printing.scryfallId);
   }
 
   if (addedScryfallIds.length > 0) {

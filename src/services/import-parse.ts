@@ -1,6 +1,8 @@
 import { Condition, Finish } from "@prisma/client";
 import { parseInventoryCsv, type CsvInventoryRow, type CsvParseResult } from "./csv";
 
+export type { ImportInvalidReason } from "./csv";
+
 const SECTION =
   /^(deck|sideboard|maybeboard|commander|companion|mainboard|maindeck|main|about|tokens?|creatures?|instants?|sorceries|artifacts?|enchantments?|planeswalkers?|lands?|other|notes?)$/i;
 const SEPARATOR = /^[-*=_~.·—–]{2,}$/;
@@ -30,13 +32,14 @@ export function parseDecklist(text: string): CsvParseResult {
     if (/^https?:\/\//i.test(line)) return;
     if (SECTION.test(line.replace(/:$/, ""))) return;
     if (SEPARATOR.test(line) || LONE_COUNT.test(line)) return;
-    if (!/[a-zA-Z]{2,}/.test(line)) return;
+    if (!/[a-zA-Z]{2,}/.test(line)) {
+      invalid.push({ row, reason: "unreadable", line });
+      return;
+    }
 
     const parsed = parseDecklistLine(line);
-    if (!parsed) {
-      if (/[a-zA-Z]{3,}/.test(line)) {
-        invalid.push({ row, message: "Could not read this line" });
-      }
+    if (!parsed.ok) {
+      invalid.push({ row, reason: parsed.reason, line });
       return;
     }
     if (SECTION.test(parsed.cardName.replace(/:$/, ""))) return;
@@ -50,6 +53,7 @@ export function parseDecklist(text: string): CsvParseResult {
       finish,
       finishSpecified: specified,
       language: "en",
+      source: line,
     });
   });
 
@@ -88,31 +92,50 @@ function cleanDecklistLine(raw: string) {
 
 function parseDecklistLine(line: string) {
   const body = line;
+  type Parsed =
+    | {
+        ok: true;
+        quantity: number;
+        cardName: string;
+        setCode?: string;
+        collectorNumber?: string;
+        foil: false;
+      }
+    | { ok: false; reason: "quantity" | "emptyName" | "unreadable" };
 
   const arena = body.match(
     /^(?:(\d+)x?\s+)?(.+?)\s+\(([A-Za-z0-9]{2,8})\)(?:\s+([0-9A-Za-z-]+))?\s*$/i,
   );
   if (arena) {
     const cardName = arena[2].trim();
-    if (!cardName) return null;
+    const quantity = arena[1] ? Number(arena[1]) : 1;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) {
+      return { ok: false, reason: "quantity" } satisfies Parsed;
+    }
+    if (!cardName) return { ok: false, reason: "emptyName" } satisfies Parsed;
     return {
-      quantity: arena[1] ? Number(arena[1]) : 1,
+      ok: true,
+      quantity,
       cardName,
       setCode: arena[3].toLowerCase(),
       collectorNumber: arena[4] || undefined,
       foil: false,
-    };
+    } satisfies Parsed;
   }
 
-  const withQty = body.match(/^(\d+)x?\s+(.+)$/);
+  const withQty = body.match(/^(\d+)x?\s+(.*)$/);
   if (withQty) {
     const cardName = withQty[2].trim();
-    if (!cardName) return null;
     const quantity = Number(withQty[1]);
-    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) return null;
-    return { quantity, cardName, foil: false };
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 9999) {
+      return { ok: false, reason: "quantity" } satisfies Parsed;
+    }
+    if (!cardName) return { ok: false, reason: "emptyName" } satisfies Parsed;
+    return { ok: true, quantity, cardName, foil: false } satisfies Parsed;
   }
 
-  if (body.length < 2 || LONE_COUNT.test(body)) return null;
-  return { quantity: 1, cardName: body, foil: false };
+  if (body.length < 2 || LONE_COUNT.test(body)) {
+    return { ok: false, reason: "unreadable" } satisfies Parsed;
+  }
+  return { ok: true, quantity: 1, cardName: body, foil: false } satisfies Parsed;
 }

@@ -30,15 +30,18 @@ export type DeckPrintingFinish = {
 export function DeckCardSearch({
   deckId,
   existingEntries,
+  autoFocus = false,
 }: {
   deckId: string;
   existingEntries: DeckPrintingFinish[];
+  autoFocus?: boolean;
 }) {
   const { m } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   function search(q: string) {
     if (searchTimer.current) clearTimeout(searchTimer.current);
@@ -58,6 +61,10 @@ export function DeckCardSearch({
     }, 280);
   }
 
+  useEffect(() => {
+    if (autoFocus) inputRef.current?.focus();
+  }, [autoFocus]);
+
   useEffect(() => () => {
     if (searchTimer.current) clearTimeout(searchTimer.current);
   }, []);
@@ -65,21 +72,27 @@ export function DeckCardSearch({
   return (
     <div className="space-y-3">
       <div className="relative">
-        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
+        <Search
+          size={19}
+          aria-hidden
+          className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500"
+        />
         <input
-          className="field field-with-icon text-sm"
+          ref={inputRef}
+          className="field field-with-icon h-12 text-base"
           placeholder={m.decks.cardName}
           value={query}
+          aria-label={m.decks.addCards}
           onChange={(e) => { setQuery(e.target.value); search(e.target.value); }}
         />
       </div>
 
       {searching && (
-        <p className="py-1 text-center text-xs text-zinc-600">{m.decks.searching}</p>
+        <p className="py-1 text-sm text-zinc-500">{m.decks.searching}</p>
       )}
 
       {results.length > 0 && (
-        <div className="divide-y divide-white/6 overflow-hidden rounded-xl border border-white/8">
+        <div className="max-h-[min(28rem,55vh)] divide-y divide-white/6 overflow-y-auto rounded-xl border border-white/8">
           {results.map((card) => (
             <SearchResultRow
               key={card.printingId}
@@ -120,8 +133,8 @@ function SearchResultRow({
   );
 
   return (
-    <div className="bg-zinc-950/60 p-3">
-      <div className="flex gap-3">
+    <div className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center">
         <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-lg bg-zinc-900 shadow">
           {card.imageSmallUrl && (
             <Image src={card.imageSmallUrl} alt="" fill sizes="44px" className="object-cover" />
@@ -129,12 +142,9 @@ function SearchResultRow({
         </div>
 
         <div className="min-w-0 flex-1 py-0.5">
-          <p className="text-sm font-semibold leading-snug">{card.name}</p>
-          <p className="mt-0.5 text-xs text-zinc-400">
-            {card.setName}
-          </p>
-          <p className="text-[11px] text-zinc-600">
-            {card.setCode.toUpperCase()} · #{card.collectorNumber}
+          <p className="truncate text-sm font-semibold leading-snug">{card.name}</p>
+          <p className="mt-0.5 truncate text-xs text-zinc-400">
+            {card.setName} · {card.setCode.toUpperCase()} #{card.collectorNumber}
             {finishLocked ? ` · ${m.finish[finish]}` : null}
           </p>
           {ownedQuantity > 0 ? (
@@ -142,38 +152,38 @@ function SearchResultRow({
               {interpolate(m.decks.youOwn, { count: ownedQuantity })}
             </p>
           ) : (
-            <p className="mt-1 text-[11px] text-zinc-700">{m.decks.notOwned}</p>
+            <p className="mt-1 text-[11px] text-zinc-600">{m.decks.notOwned}</p>
           )}
         </div>
       </div>
 
-      <form
-        action={async (fd) => { await formAction(fd); onAdded(); }}
-        className="mt-2.5 flex flex-wrap items-center gap-2"
-      >
-        <input type="hidden" name="deckId" value={deckId} />
-        <input type="hidden" name="cardId" value={card.cardId} />
-        <input type="hidden" name="printingId" value={card.printingId} />
-        <input type="hidden" name="isCommanderZone" value="false" />
-        {finishLocked ? (
-          <input type="hidden" name="finish" value={finish} />
-        ) : (
-          <select
-            className="field min-w-0 flex-1 px-2.5 py-1.5 pr-7 text-xs"
-            name="finish"
-            value={finish}
-            onChange={(event) => setFinish(event.target.value as Finish)}
-            aria-label={m.add.finish}
-          >
-            {finishOptions.map((option) => (
-              <option key={option} value={option}>
-                {m.finish[option]}
-              </option>
-            ))}
-          </select>
-        )}
+      <div className="relative shrink-0">
+        <form
+          action={async (fd) => { await formAction(fd); onAdded(); }}
+          className="flex items-center gap-2"
+        >
+          <input type="hidden" name="deckId" value={deckId} />
+          <input type="hidden" name="cardId" value={card.cardId} />
+          <input type="hidden" name="printingId" value={card.printingId} />
+          <input type="hidden" name="isCommanderZone" value="false" />
+          {finishLocked ? (
+            <input type="hidden" name="finish" value={finish} />
+          ) : (
+            <select
+              className="field w-[8.5rem] px-2.5 py-1.5 pr-7 text-xs"
+              name="finish"
+              value={finish}
+              onChange={(event) => setFinish(event.target.value as Finish)}
+              aria-label={m.add.finish}
+            >
+              {finishOptions.map((option) => (
+                <option key={option} value={option}>
+                  {m.finish[option]}
+                </option>
+              ))}
+            </select>
+          )}
 
-        <div className={`flex items-center gap-2 ${finishLocked ? "ml-auto" : ""}`}>
           <input
             name="quantity"
             type="number"
@@ -200,12 +210,11 @@ function SearchResultRow({
               <><Plus size={13} /> {m.decks.add}</>
             )}
           </button>
-        </div>
-
-        {state.error && (
-          <p className="basis-full text-xs text-rose-400">{state.error}</p>
-        )}
-      </form>
+        </form>
+        {state.error ? (
+          <p className="mt-1 text-xs text-rose-400 sm:text-right">{state.error}</p>
+        ) : null}
+      </div>
     </div>
   );
 }

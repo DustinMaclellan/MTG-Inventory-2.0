@@ -20,12 +20,13 @@ export default async function DecksPage() {
   return (
     <AppShell user={user}>
       <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <header className="mb-8 flex items-end justify-between gap-4">
+        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-zinc-500">
               {pickPlural(decks.length, m.decks.count, m.decks.countPlural)}
             </p>
             <h1 className="mt-0.5 text-3xl font-semibold tracking-tight">{m.decks.title}</h1>
+            <p className="mt-2 text-sm text-zinc-500">{m.decks.intro}</p>
           </div>
           <Link href="/decks/new" className="button-primary text-sm">
             <PlusCircle size={16} /> {m.decks.newDeck}

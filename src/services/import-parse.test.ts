@@ -54,6 +54,24 @@ https://example.com/deck`);
     });
   });
 
+  it("keeps a fake name as a valid row so catalog matching can mark it unresolved", () => {
+    const result = parseDecklist("XXXXX");
+    expect(result.invalid).toEqual([]);
+    expect(result.valid).toMatchObject([{ cardName: "XXXXX", quantity: 1 }]);
+  });
+
+  it("marks a zero quantity as invalid, not unresolved", () => {
+    const result = parseDecklist("0 Lightning Bolt");
+    expect(result.valid).toEqual([]);
+    expect(result.invalid).toEqual([{ row: 1, reason: "quantity", line: "0 Lightning Bolt" }]);
+  });
+
+  it("marks punctuation-only lines as invalid", () => {
+    const result = parseDecklist("????");
+    expect(result.valid).toEqual([]);
+    expect(result.invalid[0]).toMatchObject({ reason: "unreadable", line: "????" });
+  });
+
   it("keeps name-only and set-only lines for later printing choice", () => {
     const result = parseDecklist(`Mana Crypt
 1 Rhystic Study (PCY)`);

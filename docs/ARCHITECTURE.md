@@ -21,7 +21,7 @@ Analytics and Transactions appear in navigation as coming later. They have no pr
 
 ## Data identity
 
-`Card` represents an Oracle card concept. `CardPrinting` represents one physical printing and is uniquely anchored by Scryfall ID. `InventoryItem` always points to `CardPrinting`, then separately records finish, condition, language, quantity, storage, and acquisition data. `DeckCard` points at a specific printing **and finish** so owned vs missing is exact (`@@unique([deckId, cardPrintingId, finish])`).
+`Card` represents an Oracle card concept. `CardPrinting` represents one physical printing and is uniquely anchored by Scryfall ID. `InventoryItem` always points to `CardPrinting`, then separately records finish, condition, language, quantity, storage, and acquisition data. `DeckCard` points at a specific printing **and finish** so owned vs missing is exact (`@@unique([deckId, cardPrintingId, finish, isCommanderZone])`). The same printing can sit in the commander zone (quantity 1) and the mainboard (remaining copies). Unsetting the commander merges those copies back together.
 
 ## Preferences and chrome
 

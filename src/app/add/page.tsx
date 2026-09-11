@@ -58,7 +58,7 @@ export default async function AddCardsPage({
               name="q"
               defaultValue={query}
               autoFocus
-              placeholder={m.add.searchExample}
+              placeholder={m.add.searchPlaceholder}
             />
           </div>
           <button className="button-primary px-5">{m.common.search}</button>

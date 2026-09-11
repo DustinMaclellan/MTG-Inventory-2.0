@@ -11,7 +11,13 @@ export function DeckCommanderPicker({
 }: {
   deckId: string;
   commanderId: string | null;
-  cards: Array<{ id: string; name: string; finish: Finish }>;
+  cards: Array<{
+    id: string;
+    cardId: string;
+    cardPrintingId: string | null;
+    name: string;
+    finish: Finish;
+  }>;
 }) {
   const { m } = useI18n();
 

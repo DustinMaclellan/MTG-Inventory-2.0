@@ -25,5 +25,12 @@ describe("parseInventoryCsv", () => {
     );
     expect(result.valid).toHaveLength(0);
     expect(result.invalid[0]?.row).toBe(2);
+    expect(result.invalid[0]?.reason).toBe("quantity");
+  });
+
+  it("reports an empty card name as invalid", () => {
+    const result = parseInventoryCsv("card_name,quantity\n,4");
+    expect(result.valid).toHaveLength(0);
+    expect(result.invalid[0]?.reason).toBe("emptyName");
   });
 });

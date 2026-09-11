@@ -286,7 +286,7 @@ model DeckCard {
   card            Card          @relation(fields: [cardId], references: [id], onDelete: Restrict)
   printing        CardPrinting? @relation(fields: [cardPrintingId], references: [id], onDelete: SetNull)
 
-  @@unique([deckId, cardPrintingId, finish])
+  @@unique([deckId, cardPrintingId, finish, isCommanderZone])
   @@index([deckId])
   @@index([cardId])
   @@index([cardPrintingId])

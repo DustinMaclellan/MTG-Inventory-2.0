@@ -640,8 +640,8 @@ export type ImportPreviewState = {
   error?: string;
   recognized?: RecognizedImportRow[];
   choices?: ImportChoice[];
-  unresolved?: Array<{ row: number; cardName: string; printing: string }>;
-  invalid?: Array<{ row: number; message: string }>;
+  unresolved?: Array<{ row: number; cardName: string; printing: string; line?: string }>;
+  invalid?: Array<{ row: number; message: string; line?: string }>;
   duplicates?: number;
 };
 
@@ -650,14 +650,24 @@ export async function previewImportAction(
   formData: FormData,
 ): Promise<ImportPreviewState> {
   await requireEntitlement();
+  const m = await t();
   const pasted = z.string().max(2_000_000).safeParse(formData.get("csv"));
-  if (!pasted.success) return { error: "Paste a list smaller than 2 MB." };
+  if (!pasted.success) return { error: m.imports.pasteTooLarge };
   const parsed = parseImportPaste(pasted.data);
   if (parsed.valid.length === 0 && parsed.invalid.length === 0) {
-    return { error: "Paste a deck list or CSV first." };
+    return { error: m.imports.emptyPaste };
   }
-  const resolved = await resolveImportLines(parsed.valid);
-  return { ...resolved, invalid: parsed.invalid };
+  const resolved = parsed.valid.length > 0
+    ? await resolveImportLines(parsed.valid)
+    : { recognized: [], choices: [], unresolved: [], duplicates: 0 };
+  return {
+    ...resolved,
+    invalid: parsed.invalid.map((row) => ({
+      row: row.row,
+      message: m.imports.invalidReasons[row.reason],
+      line: row.line,
+    })),
+  };
 }
 
 const importRowsSchema = z.array(

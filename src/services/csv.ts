@@ -55,12 +55,26 @@ export type CsvInventoryRow = {
   language: string;
   purchasePrice?: number;
   storageLocation?: string;
+  source?: string;
 };
+
+export type ImportInvalidReason =
+  | "unreadable"
+  | "quantity"
+  | "emptyName"
+  | "csv"
+  | "conditionFinish";
 
 export type CsvParseResult = {
   valid: CsvInventoryRow[];
-  invalid: Array<{ row: number; message: string }>;
+  invalid: Array<{ row: number; reason: ImportInvalidReason; line?: string }>;
 };
+
+function csvInvalidReason(path: string | number | undefined): ImportInvalidReason {
+  if (path === "quantity" || path === "purchase_price") return "quantity";
+  if (path === "card_name") return "emptyName";
+  return "unreadable";
+}
 
 export function parseInventoryCsv(csv: string): CsvParseResult {
   let records: Record<string, string>[];
@@ -71,23 +85,28 @@ export function parseInventoryCsv(csv: string): CsvParseResult {
       trim: true,
       bom: true,
     });
-  } catch (error) {
-    return { valid: [], invalid: [{ row: 1, message: error instanceof Error ? error.message : "Invalid CSV" }] };
+  } catch {
+    return { valid: [], invalid: [{ row: 1, reason: "csv" }] };
   }
 
   const valid: CsvInventoryRow[] = [];
   const invalid: CsvParseResult["invalid"] = [];
   records.forEach((record, index) => {
     const row = index + 2;
+    const line = Object.values(record).filter(Boolean).join(", ");
     const parsed = rowSchema.safeParse(record);
     if (!parsed.success) {
-      invalid.push({ row, message: parsed.error.issues[0]?.message ?? "Invalid row" });
+      invalid.push({
+        row,
+        reason: csvInvalidReason(parsed.error.issues[0]?.path[0]),
+        line,
+      });
       return;
     }
     const condition = conditions[parsed.data.condition.toLowerCase()];
     const finish = finishes[parsed.data.finish.toLowerCase()];
     if (!condition || !finish) {
-      invalid.push({ row, message: "Unsupported condition or finish" });
+      invalid.push({ row, reason: "conditionFinish", line });
       return;
     }
     valid.push({
@@ -102,6 +121,7 @@ export function parseInventoryCsv(csv: string): CsvParseResult {
       language: parsed.data.language,
       purchasePrice: parsed.data.purchase_price,
       storageLocation: parsed.data.storage_location,
+      source: line,
     });
   });
   return { valid, invalid };
