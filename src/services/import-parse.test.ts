@@ -98,4 +98,20 @@ describe("parseImportPaste", () => {
     expect(result.invalid).toEqual([]);
     expect(result.valid[0]).toMatchObject({ cardName: "Mana Crypt", setCode: "", quantity: 2 });
   });
+
+  it("treats a Moxfield collection CSV as CSV, not a deck list", () => {
+    const result = parseImportPaste(
+      "Count,Tradelist Count,Name,Edition,Condition,Language,Foil,Tags,Last Modified,Collector Number,Alter,Proxy,Purchase Price\n4,,Lightning Bolt,m10,Lightly Played,English,foil,Binder A,2026-09-10,146,,,1.25",
+    );
+    expect(result.invalid).toEqual([]);
+    expect(result.valid[0]).toMatchObject({
+      cardName: "Lightning Bolt",
+      setCode: "m10",
+      collectorNumber: "146",
+      quantity: 4,
+      finish: "FOIL",
+      storageLocation: "Binder A",
+      purchasePrice: 1.25,
+    });
+  });
 });

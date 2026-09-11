@@ -124,9 +124,37 @@ async function loadPrintings(
   setCode?: string,
   collectorNumber?: string,
   finish?: Finish,
+  extras?: { scryfallId?: string; setName?: string },
 ) {
+  if (extras?.scryfallId) {
+    const id = extras.scryfallId.trim();
+    const local = await db.cardPrinting.findUnique({
+      where: { scryfallId: id },
+      include: { set: true },
+    });
+    if (local && !local.digital) return [local];
+    try {
+      const remote = await scryfall.getPrintingsByIds([id]);
+      await scryfall.synchronizePrintings(remote);
+    } catch {
+      // Fall through to name / set search.
+    }
+    const synced = await db.cardPrinting.findUnique({
+      where: { scryfallId: id },
+      include: { set: true },
+    });
+    if (synced && !synced.digital) return [synced];
+  }
+
   let useSet = setCode;
   let useNumber = collectorNumber;
+  if (!useSet && extras?.setName) {
+    const namedSet = await db.mtgSet.findFirst({
+      where: { name: { equals: extras.setName, mode: "insensitive" } },
+      select: { code: true },
+    });
+    if (namedSet) useSet = namedSet.code;
+  }
 
   if (setCode && collectorNumber) {
     try {
@@ -237,6 +265,7 @@ function mergeImportRows(rows: CsvInventoryRow[]) {
       row.cardName.toLowerCase(),
       row.setCode.trim().toLowerCase(),
       row.collectorNumber.trim().toLowerCase(),
+      row.scryfallId?.trim().toLowerCase() ?? "",
       row.finish,
       row.condition,
       row.language,
@@ -277,10 +306,13 @@ export async function resolveImportLines(rows: CsvInventoryRow[]): Promise<{
   for (const row of mergeImportRows(rows)) {
     const setCode = row.setCode.trim() || undefined;
     const collectorNumber = row.collectorNumber.trim() || undefined;
-    const cacheKey = `${row.cardName.toLowerCase()}|${setCode ?? ""}|${collectorNumber ?? ""}|${row.finish}`;
+    const cacheKey = `${row.cardName.toLowerCase()}|${setCode ?? ""}|${collectorNumber ?? ""}|${row.finish}|${row.scryfallId ?? ""}|${row.setName ?? ""}`;
     let printings = cache.get(cacheKey);
     if (!printings) {
-      printings = await loadPrintings(row.cardName, setCode, collectorNumber, row.finish);
+      printings = await loadPrintings(row.cardName, setCode, collectorNumber, row.finish, {
+        scryfallId: row.scryfallId,
+        setName: row.setName,
+      });
       cache.set(cacheKey, printings);
     }
 

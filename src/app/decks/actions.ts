@@ -87,6 +87,50 @@ export async function deleteDeckAction(formData: FormData): Promise<void> {
   redirect("/decks");
 }
 
+function copyDeckName(name: string, suffix: string) {
+  const next = `${name}${suffix}`;
+  if (next.length <= 80) return next;
+  return `${name.slice(0, Math.max(1, 80 - suffix.length))}${suffix}`;
+}
+
+export async function duplicateDeckAction(formData: FormData): Promise<void> {
+  const user = await requireEntitlement();
+  const m = await t();
+  const deckId = z.string().cuid().parse(formData.get("deckId"));
+  const source = await db.deck.findFirst({
+    where: { id: deckId, userId: user.id },
+    include: { cards: true },
+  });
+  if (!source) redirect("/decks");
+
+  const copy = await db.$transaction(async (tx) => {
+    const deck = await tx.deck.create({
+      data: {
+        userId: user.id,
+        name: copyDeckName(source.name, m.decks.copySuffix),
+        format: source.format,
+        notes: source.notes,
+      },
+    });
+    if (source.cards.length > 0) {
+      await tx.deckCard.createMany({
+        data: source.cards.map((card) => ({
+          deckId: deck.id,
+          cardId: card.cardId,
+          cardPrintingId: card.cardPrintingId,
+          finish: card.finish,
+          quantity: card.quantity,
+          isCommanderZone: card.isCommanderZone,
+        })),
+      });
+    }
+    return deck;
+  });
+
+  revalidatePath("/decks");
+  redirect(`/decks/${copy.id}`);
+}
+
 const deckCardSchema = z.object({
   deckId: z.string().cuid(),
   cardId: z.string().cuid(),

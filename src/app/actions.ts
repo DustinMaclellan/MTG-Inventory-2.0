@@ -595,6 +595,25 @@ export async function renameStorageLocationAction(
 
 export type StorageFormState = { error?: string; notice?: string };
 
+export async function deleteStorageLocationAction(formData: FormData): Promise<void> {
+  const user = await requireEntitlement();
+  const parsed = z.string().trim().min(1).max(120).safeParse(formData.get("name"));
+  if (!parsed.success) return;
+  if (parsed.data.toLowerCase() === "unassigned") return;
+
+  await db.inventoryItem.updateMany({
+    where: {
+      collection: { userId: user.id },
+      storageLocation: { equals: parsed.data, mode: "insensitive" },
+    },
+    data: { storageLocation: null },
+  });
+
+  revalidatePath("/storage");
+  revalidatePath("/collection");
+  revalidatePath("/dashboard");
+}
+
 export async function mergeStorageLocationsAction(
   _: StorageFormState,
   formData: FormData,

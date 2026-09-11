@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { ExportPicker } from "./export-picker";
 
 export const metadata = { title: "Import & export" };
+export const maxDuration = 60;
 
 export default async function ImportsPage() {
   const user = await requireEntitlement();

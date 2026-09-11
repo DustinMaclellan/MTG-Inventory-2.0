@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useState } from "react";
-import { ArrowUpRight, GitMerge, Inbox, MapPin, Pencil } from "lucide-react";
+import { useActionState, useRef, useState, type MouseEvent } from "react";
+import { ArrowUpRight, GitMerge, Inbox, MapPin, Pencil, Trash2 } from "lucide-react";
 import {
+  deleteStorageLocationAction,
   mergeStorageLocationsAction,
   renameStorageLocationAction,
   type RenameStorageState,
@@ -79,6 +80,7 @@ export function StorageLocationCard({
                       <GitMerge size={13} />
                     </button>
                   )}
+                  {!unassigned && <DeleteStorageButton name={location.name} />}
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">
                   {pickPlural(location.lots, m.storage.cardsLots, m.storage.cardsLotsPlural, {
@@ -139,6 +141,64 @@ export function StorageLocationCard({
         </div>
       </Link>
     </article>
+  );
+}
+
+function DeleteStorageButton({ name }: { name: string }) {
+  const { m } = useI18n();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  function open(event: MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    dialogRef.current?.showModal();
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        title={m.storage.deleteLocation}
+        aria-haspopup="dialog"
+        onClick={open}
+        className="rounded-md p-1 text-zinc-600 hover:bg-rose-500/10 hover:text-rose-400 transition-colors"
+      >
+        <Trash2 size={13} />
+      </button>
+      <dialog
+        ref={dialogRef}
+        className="m-auto w-[min(calc(100%-2rem),22rem)] rounded-2xl border border-white/10 bg-[#0f1318] p-0 text-zinc-100 shadow-[0_24px_80px_rgba(0,0,0,.55)] backdrop:bg-black/65"
+        onClick={(event) => {
+          event.stopPropagation();
+          if (event.target === event.currentTarget) event.currentTarget.close();
+        }}
+      >
+        <div className="space-y-4 p-5">
+          <h2 className="text-base font-semibold tracking-tight">{m.storage.deleteLocation}</h2>
+          <p className="text-sm leading-6 text-zinc-400 wrap-break-word [overflow-wrap:anywhere]">
+            {interpolate(m.storage.deleteConfirm, { name })}
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => dialogRef.current?.close()}
+              className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-zinc-400 hover:bg-white/6 hover:text-zinc-200 transition-colors"
+            >
+              {m.common.cancel}
+            </button>
+            <form action={deleteStorageLocationAction}>
+              <input type="hidden" name="name" value={name} />
+              <button
+                type="submit"
+                className="rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-1.5 text-sm font-medium text-rose-400 hover:bg-rose-500/16 transition-colors"
+              >
+                {m.storage.deleteLocation}
+              </button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import { allocateRowOwnership, deckOwnedTotals, uniqueCommanderPickerCards } fro
 import { deckFormatAllowsCommander } from "@/lib/deck-formats";
 import { removeDeckCardAction } from "@/app/decks/actions";
 import { DeleteDeckButton } from "./delete-deck-button";
+import { DuplicateDeckButton } from "./duplicate-deck-button";
 import { AddMissingButton } from "./add-missing-button";
 import { DeckCardControls } from "./deck-card-controls";
 import { DeckCardSearch } from "./deck-card-search";
@@ -110,11 +111,13 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
           </Link>
 
           <div className="mt-3 flex flex-wrap items-start justify-between gap-6">
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-4xl font-semibold tracking-tight">{deck.name}</h1>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-4xl font-semibold tracking-tight wrap-break-word [overflow-wrap:anywhere]">
+                {deck.name}
+              </h1>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 {deck.format && (
-                  <span className="badge">{m.format[deck.format as keyof typeof m.format] ?? deck.format}</span>
+                  <span className="badge shrink-0">{m.format[deck.format as keyof typeof m.format] ?? deck.format}</span>
                 )}
                 <DeckDetailsForm
                   deckId={deck.id}
@@ -122,6 +125,7 @@ export default async function DeckPage({ params }: { params: Promise<{ id: strin
                   format={deck.format}
                   notes={deck.notes}
                 />
+                <DuplicateDeckButton deckId={deck.id} />
               </div>
               {deck.notes && (
                 <p className="mt-2 max-w-lg text-sm leading-6 text-zinc-500">{deck.notes}</p>

@@ -2,6 +2,10 @@ import "server-only";
 
 import { Condition, Currency, Finish, Prisma } from "@prisma/client";
 import { requireEntitlement } from "@/lib/auth";
+import {
+  type InventorySort,
+  type InventorySortDir,
+} from "@/lib/collection-sort";
 import { db } from "@/lib/db";
 import { coerceFinish } from "@/lib/finish";
 import { usdFx } from "@/lib/fx";
@@ -111,12 +115,138 @@ function withLotMarkets<
   });
 }
 
-export async function getInventory(page = 1, pageSize = 25, filters: InventoryFilters = {}) {
+function inventoryOrderBy(
+  sort: InventorySort,
+  dir: InventorySortDir,
+): Prisma.InventoryItemOrderByWithRelationInput[] {
+  if (sort === "name") {
+    return [
+      { cardPrinting: { name: dir } },
+      { cardPrinting: { set: { name: "asc" } } },
+      { id: "asc" },
+    ];
+  }
+  if (sort === "set") {
+    return [
+      { cardPrinting: { set: { name: dir } } },
+      { cardPrinting: { collectorNumber: "asc" } },
+      { cardPrinting: { name: "asc" } },
+      { id: "asc" },
+    ];
+  }
+  return [{ createdAt: dir }, { id: dir }];
+}
+
+function lotValue(item: {
+  quantity: number;
+  cardPrinting: { currentPrices: Array<{ market: Prisma.Decimal | number | null }> };
+}) {
+  const market = numericMarket(item.cardPrinting.currentPrices[0]?.market);
+  return market == null ? null : market * item.quantity;
+}
+
+function compareLotValue(
+  a: { id: string; quantity: number; cardPrinting: { currentPrices: Array<{ market: Prisma.Decimal | number | null }> } },
+  b: { id: string; quantity: number; cardPrinting: { currentPrices: Array<{ market: Prisma.Decimal | number | null }> } },
+  dir: InventorySortDir,
+) {
+  const av = lotValue(a);
+  const bv = lotValue(b);
+  if (av == null && bv == null) return a.id.localeCompare(b.id);
+  if (av == null) return 1;
+  if (bv == null) return -1;
+  if (av !== bv) return dir === "asc" ? av - bv : bv - av;
+  return a.id.localeCompare(b.id);
+}
+
+async function storageLocationNames(userId: string) {
+  const storageLocations = await db.inventoryItem.findMany({
+    where: {
+      collection: { userId },
+      storageLocation: { not: null },
+    },
+    distinct: ["storageLocation"],
+    select: { storageLocation: true },
+    orderBy: { storageLocation: "asc" },
+  });
+  return storageLocations
+    .map((entry) => entry.storageLocation)
+    .filter((value): value is string => Boolean(value));
+}
+
+async function inventoryIdsByValue(
+  userId: string,
+  where: Prisma.InventoryItemWhereInput,
+  preferredCurrency: Currency,
+  dir: InventorySortDir,
+) {
+  const fx = await displayFx(preferredCurrency);
+  const storedCurrency = storedMarketCurrency(preferredCurrency);
+  const slim = await db.inventoryItem.findMany({
+    where,
+    select: {
+      id: true,
+      quantity: true,
+      finish: true,
+      cardPrinting: {
+        select: {
+          rawPrices: true,
+          currentPrices: { where: scryfallPriceWhere(preferredCurrency) },
+        },
+      },
+    },
+  });
+  return withLotMarkets(slim, storedCurrency, fx)
+    .sort((a, b) => compareLotValue(a, b, dir))
+    .map((row) => row.id);
+}
+
+async function fetchInventoryPage(ids: string[], preferredCurrency: Currency) {
+  if (ids.length === 0) return [];
+  const items = await db.inventoryItem.findMany({
+    where: { id: { in: ids } },
+    include: {
+      cardPrinting: {
+        include: {
+          set: true,
+          currentPrices: { where: scryfallPriceWhere(preferredCurrency) },
+        },
+      },
+    },
+  });
+  const order = new Map(ids.map((id, index) => [id, index]));
+  return items.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+export async function getInventory(
+  page = 1,
+  pageSize = 25,
+  filters: InventoryFilters = {},
+  sort: InventorySort = "added",
+  dir: InventorySortDir = "desc",
+) {
   const user = await requireEntitlement();
   await healUnsupportedInventoryFinishes(user.id);
   const where = inventoryWhere(user.id, filters);
   const fx = await displayFx(user.preferredCurrency);
   const storedCurrency = storedMarketCurrency(user.preferredCurrency);
+
+  if (sort === "value") {
+    const [ids, storageLocations] = await Promise.all([
+      inventoryIdsByValue(user.id, where, user.preferredCurrency, dir),
+      storageLocationNames(user.id),
+    ]);
+    const pageIds = ids.slice((page - 1) * pageSize, page * pageSize);
+    const items = await fetchInventoryPage(pageIds, user.preferredCurrency);
+    return {
+      items: withLotMarkets(items, storedCurrency, fx),
+      total: ids.length,
+      page,
+      pageSize,
+      storageLocations,
+    };
+  }
+
   const [items, total, storageLocations] = await db.$transaction([
     db.inventoryItem.findMany({
       where,
@@ -130,7 +260,7 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
           },
         },
       },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      orderBy: inventoryOrderBy(sort, dir),
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -156,11 +286,17 @@ export async function getInventory(page = 1, pageSize = 25, filters: InventoryFi
   };
 }
 
-export async function getInventoryLotPage(lotId: string, pageSize = 25, filters: InventoryFilters = {}) {
+export async function getInventoryLotPage(
+  lotId: string,
+  pageSize = 25,
+  filters: InventoryFilters = {},
+  sort: InventorySort = "added",
+  dir: InventorySortDir = "desc",
+) {
   const user = await requireEntitlement();
   const lot = await db.inventoryItem.findFirst({
     where: { id: lotId, collection: { userId: user.id } },
-    select: { id: true, createdAt: true },
+    select: { id: true },
   });
   if (!lot) return null;
 
@@ -168,16 +304,45 @@ export async function getInventoryLotPage(lotId: string, pageSize = 25, filters:
   const inView = await db.inventoryItem.count({ where: { ...where, id: lotId } });
   if (!inView) return null;
 
-  const ahead = await db.inventoryItem.count({
-    where: {
-      ...where,
-      OR: [
-        { createdAt: { gt: lot.createdAt } },
-        { createdAt: lot.createdAt, id: { gt: lot.id } },
-      ],
-    },
+  if (sort === "value") {
+    const ids = await inventoryIdsByValue(user.id, where, user.preferredCurrency, dir);
+    const index = ids.indexOf(lotId);
+    if (index < 0) return null;
+    return Math.floor(index / pageSize) + 1;
+  }
+
+  if (sort === "added") {
+    const created = await db.inventoryItem.findFirst({
+      where: { id: lotId },
+      select: { createdAt: true },
+    });
+    if (!created) return null;
+    const ahead = await db.inventoryItem.count({
+      where: {
+        ...where,
+        OR:
+          dir === "desc"
+            ? [
+                { createdAt: { gt: created.createdAt } },
+                { createdAt: created.createdAt, id: { gt: lotId } },
+              ]
+            : [
+                { createdAt: { lt: created.createdAt } },
+                { createdAt: created.createdAt, id: { lt: lotId } },
+              ],
+      },
+    });
+    return Math.floor(ahead / pageSize) + 1;
+  }
+
+  const rows = await db.inventoryItem.findMany({
+    where,
+    select: { id: true },
+    orderBy: inventoryOrderBy(sort, dir),
   });
-  return Math.floor(ahead / pageSize) + 1;
+  const index = rows.findIndex((row) => row.id === lotId);
+  if (index < 0) return null;
+  return Math.floor(index / pageSize) + 1;
 }
 
 export async function getInventoryLot(id: string) {

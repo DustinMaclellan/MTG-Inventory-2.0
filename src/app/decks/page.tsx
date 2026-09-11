@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { dateLocale, getMessages, interpolate, isLocale, pickPlural, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { getDeckSummaries } from "@/services/decks";
+import { DeleteDeckButton } from "./[id]/delete-deck-button";
 
 export const metadata = { title: "Decks" };
 
@@ -49,37 +50,48 @@ export default async function DecksPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {decks.map((deck) => (
-              <Link
+              <article
                 key={deck.id}
-                href={`/decks/${deck.id}`}
-                className="panel group flex flex-col gap-3 p-5 transition-all hover:border-accent/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]"
+                className="panel relative flex flex-col gap-3 p-5 transition-all hover:border-accent/15 hover:shadow-[0_20px_50px_rgba(0,0,0,.3)]"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold leading-snug group-hover:text-accent transition-colors">
-                      {deck.name}
+                <Link
+                  href={`/decks/${deck.id}`}
+                  aria-label={deck.name}
+                  className="absolute inset-0 z-0 rounded-[inherit] peer"
+                />
+                <div className="pointer-events-none min-w-0 peer-hover:[&_.deck-name]:text-accent">
+                  <p className="deck-name truncate font-semibold leading-snug transition-colors">
+                    {deck.name}
+                  </p>
+                  {deck.format && (
+                    <p className="mt-1 text-xs text-zinc-500">
+                      {formatLabel(deck.format, m)}
                     </p>
-                    {deck.format && (
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {formatLabel(deck.format, m)}
-                      </p>
-                    )}
-                  </div>
-                  <span className="shrink-0 rounded-lg border border-white/8 bg-white/4 px-2.5 py-1 text-xs font-medium text-zinc-400">
-                    {deck.totalCards > 0
-                      ? interpolate(m.decks.ownedOf, { owned: deck.ownedCards, total: deck.totalCards })
-                      : interpolate(m.decks.cardsCount, { count: 0 })}
-                  </span>
+                  )}
+                  {deck.notes && (
+                    <p className="mt-2 line-clamp-2 text-xs leading-5 text-zinc-600">
+                      {deck.notes}
+                    </p>
+                  )}
                 </div>
-                {deck.notes && (
-                  <p className="line-clamp-2 text-xs leading-5 text-zinc-600">{deck.notes}</p>
-                )}
-                <p className="text-[11px] text-zinc-700">
-                  {interpolate(m.decks.updated, {
-                    date: deck.updatedAt.toLocaleDateString(dateLocale(locale)),
-                  })}
-                </p>
-              </Link>
+                <div className="pointer-events-none mt-auto flex items-center justify-between gap-3">
+                  <p className="text-[11px] text-zinc-700">
+                    {interpolate(m.decks.updated, {
+                      date: deck.updatedAt.toLocaleDateString(dateLocale(locale)),
+                    })}
+                  </p>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span className="text-xs tabular-nums text-zinc-500">
+                      {deck.totalCards > 0
+                        ? interpolate(m.decks.ownedOf, { owned: deck.ownedCards, total: deck.totalCards })
+                        : interpolate(m.decks.cardsCount, { count: 0 })}
+                    </span>
+                    <div className="pointer-events-auto relative z-10">
+                      <DeleteDeckButton deckId={deck.id} deckName={deck.name} compact />
+                    </div>
+                  </div>
+                </div>
+              </article>
             ))}
           </div>
         )}

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Check, ChevronDown, ChevronUp, ChevronsUpDown, Pencil, Trash2, X } from "lucide-react";
 import {
   bulkDeleteInventoryAction,
@@ -13,8 +13,41 @@ import type { BulkUpdateState } from "@/app/actions";
 import type { Condition, Currency, Finish } from "@prisma/client";
 import { interpolate, pickPlural } from "@/i18n";
 import { useI18n } from "@/i18n/provider";
+import {
+  buildCollectionHref,
+  nextCollectionSort,
+  type CollectionHrefParams,
+  type InventorySort,
+  type InventorySortDir,
+} from "@/lib/collection-sort";
 import { formatMoney, toDisplayPaid, type UsdFx } from "@/lib/money";
 import { LotEditorDialog } from "@/components/lot-editor-dialog";
+
+export function CollectionSortSelect({
+  name,
+  defaultValue,
+  className,
+  "aria-label": ariaLabel,
+  children,
+}: {
+  name: string;
+  defaultValue: string;
+  className?: string;
+  "aria-label"?: string;
+  children: ReactNode;
+}) {
+  return (
+    <select
+      name={name}
+      defaultValue={defaultValue}
+      aria-label={ariaLabel}
+      className={className}
+      onChange={(event) => event.currentTarget.form?.requestSubmit()}
+    >
+      {children}
+    </select>
+  );
+}
 
 // ─── Types ─────────────────────────────────────────────────
 export type CollectionRow = {
@@ -52,7 +85,7 @@ const ALL_CONDITIONS: Condition[] = [
   "NEAR_MINT", "LIGHTLY_PLAYED", "MODERATELY_PLAYED", "HEAVILY_PLAYED", "DAMAGED",
 ];
 
-type SortKey = "name" | "qty" | "condition" | "finish" | "paid" | "market" | "value";
+type SortKey = "qty" | "condition" | "finish" | "paid" | "market";
 type SortDir = "asc" | "desc";
 
 function itemMarket(item: CollectionRow) {
@@ -69,8 +102,10 @@ export function CollectionTable({
   currency,
   fx,
   filtersActive,
-  currentQ,
   storageLocations,
+  sort,
+  dir,
+  listParams,
   listHref,
   initialLotId,
 }: {
@@ -78,11 +113,19 @@ export function CollectionTable({
   currency: Currency;
   fx: UsdFx;
   filtersActive: boolean;
-  currentQ: string;
   storageLocations: string[];
+  sort: InventorySort;
+  dir: InventorySortDir;
+  listParams: CollectionHrefParams;
   listHref: string;
   initialLotId?: string;
 }) {
+  function hrefFor(next: CollectionHrefParams) {
+    return buildCollectionHref({ ...listParams, ...next });
+  }
+  function sortHref(col: InventorySort) {
+    return hrefFor({ page: 1, ...nextCollectionSort(listParams, col) });
+  }
   const { locale, m } = useI18n();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
@@ -151,18 +194,11 @@ export function CollectionTable({
       let av: string | number | null = null;
       let bv: string | number | null = null;
       switch (sortKey) {
-        case "name":      av = a.cardPrinting.name;   bv = b.cardPrinting.name;   break;
         case "qty":       av = a.quantity;             bv = b.quantity;             break;
         case "condition": av = a.condition;            bv = b.condition;            break;
         case "finish":    av = a.finish;               bv = b.finish;               break;
         case "paid":      av = itemPaid(a, currency, fx) ?? -1;  bv = itemPaid(b, currency, fx) ?? -1;  break;
         case "market":    av = itemMarket(a) ?? -1;   bv = itemMarket(b) ?? -1;   break;
-        case "value": {
-          const am = itemMarket(a); const bm = itemMarket(b);
-          av = am === null ? -1 : am * a.quantity;
-          bv = bm === null ? -1 : bm * b.quantity;
-          break;
-        }
       }
       if (av === bv) return 0;
       if (av === null || av < bv!) return sortDir === "asc" ? -1 : 1;
@@ -176,7 +212,6 @@ export function CollectionTable({
     { label: m.collection.finish, key: "finish" },
     { label: m.collection.paid, key: "paid" },
     { label: m.collection.market, key: "market" },
-    { label: m.collection.value, key: "value" },
   ];
 
   return (
@@ -196,20 +231,41 @@ export function CollectionTable({
                 />
               </th>
 
-              {/* Card — sortable */}
               <th className="px-4 py-3">
-                <SortBtn label={m.collection.card} col="name" current={sortKey} dir={sortDir} onSort={handleSort} />
+                <SortLink
+                  label={m.collection.card}
+                  col="name"
+                  current={sort}
+                  dir={dir}
+                  href={sortHref("name")}
+                />
               </th>
 
-              {/* Printing — static */}
-              <th className="px-4 py-3">{m.collection.printing}</th>
+              <th className="px-4 py-3">
+                <SortLink
+                  label={m.collection.printing}
+                  col="set"
+                  current={sort}
+                  dir={dir}
+                  href={sortHref("set")}
+                />
+              </th>
 
-              {/* Sortable columns */}
               {cols.map(({ label, key }) => (
                 <th key={key} className="px-4 py-3">
                   <SortBtn label={label} col={key} current={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
               ))}
+
+              <th className="px-4 py-3">
+                <SortLink
+                  label={m.collection.value}
+                  col="value"
+                  current={sort}
+                  dir={dir}
+                  href={sortHref("value")}
+                />
+              </th>
 
               {/* Storage + actions — static */}
               <th className="px-4 py-3">{m.collection.storage}</th>
@@ -276,10 +332,7 @@ export function CollectionTable({
                   <td className="max-w-36 truncate px-4 py-3 text-xs text-zinc-500">
                     {item.storageLocation ? (
                       <Link
-                        href={`/collection?${new URLSearchParams({
-                          ...(currentQ ? { q: currentQ } : {}),
-                          storage: item.storageLocation,
-                        }).toString()}`}
+                        href={hrefFor({ page: 1, storage: item.storageLocation })}
                         className="hover:text-accent transition-colors"
                       >
                         {item.storageLocation}
@@ -335,7 +388,30 @@ export function CollectionTable({
   );
 }
 
-// ─── Sortable header button ─────────────────────────────────
+function sortHeaderClass(active: boolean) {
+  return `flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors hover:text-zinc-300 ${active ? "text-accent" : "text-zinc-600"}`;
+}
+
+function SortLink({
+  label, col, current, dir, href,
+}: {
+  label: string;
+  col: InventorySort;
+  current: InventorySort;
+  dir: InventorySortDir;
+  href: string;
+}) {
+  const active = current === col;
+  return (
+    <Link href={href} className={sortHeaderClass(active)}>
+      {label}
+      {active
+        ? dir === "asc" ? <ChevronUp size={11} /> : <ChevronDown size={11} />
+        : <ChevronsUpDown size={11} className="opacity-35" />}
+    </Link>
+  );
+}
+
 function SortBtn({
   label, col, current, dir, onSort,
 }: {
@@ -346,7 +422,7 @@ function SortBtn({
   return (
     <button
       onClick={() => onSort(col)}
-      className={`flex items-center gap-1 whitespace-nowrap text-[11px] font-medium uppercase tracking-wider transition-colors hover:text-zinc-300 ${active ? "text-accent" : "text-zinc-600"}`}
+      className={sortHeaderClass(active)}
     >
       {label}
       {active

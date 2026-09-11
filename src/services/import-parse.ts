@@ -1,5 +1,5 @@
 import { Condition, Finish } from "@prisma/client";
-import { parseInventoryCsv, type CsvInventoryRow, type CsvParseResult } from "./csv";
+import { looksLikeInventoryCsv, parseInventoryCsv, type CsvInventoryRow, type CsvParseResult } from "./csv";
 
 export type { ImportInvalidReason } from "./csv";
 
@@ -9,8 +9,7 @@ const SEPARATOR = /^[-*=_~.·—–]{2,}$/;
 const LONE_COUNT = /^\d+x?$/i;
 
 export function looksLikeCsv(text: string) {
-  const first = text.trim().split(/\r?\n/, 1)[0]?.toLowerCase() ?? "";
-  return first.includes("card_name") && first.includes(",");
+  return looksLikeInventoryCsv(text);
 }
 
 export function parseImportPaste(text: string): CsvParseResult {

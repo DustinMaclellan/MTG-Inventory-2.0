@@ -2,29 +2,20 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import type { Currency } from "@prisma/client";
 import { AppShell } from "@/components/app-shell";
-import { CollectionTable, type CollectionRow } from "@/components/collection-table";
+import { CollectionSortSelect, CollectionTable, type CollectionRow } from "@/components/collection-table";
 import { getMessages, interpolate, isLocale, pickPlural } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
 import { lotsPerPageFor } from "@/lib/collection-prefs";
+import {
+  buildCollectionHref,
+  inventorySortKey,
+  parseInventorySortParam,
+} from "@/lib/collection-sort";
 import { usdFx } from "@/lib/fx";
 import { redirect } from "next/navigation";
 import { getInventory, getInventoryLotPage } from "@/services/inventory";
 
 export const metadata = { title: "Collection" };
-
-function buildCollectionHref(params: {
-  page?: number; q?: string; storage?: string; condition?: string; finish?: string; lot?: string;
-}) {
-  const search = new URLSearchParams();
-  if (params.q) search.set("q", params.q);
-  if (params.storage) search.set("storage", params.storage);
-  if (params.condition) search.set("condition", params.condition);
-  if (params.finish) search.set("finish", params.finish);
-  if (params.page && params.page > 1) search.set("page", String(params.page));
-  if (params.lot) search.set("lot", params.lot);
-  const query = search.toString();
-  return query ? `/collection?${query}` : "/collection";
-}
 
 function toCollectionRow(item: {
   id: string;
@@ -95,6 +86,8 @@ export default async function CollectionPage({
     condition?: string;
     finish?: string;
     lot?: string;
+    sort?: string;
+    dir?: string;
   }>;
 }) {
   const user = await requireEntitlement();
@@ -108,19 +101,21 @@ export default async function CollectionPage({
   const condition = params.condition?.trim() ?? "";
   const finish = params.finish?.trim() ?? "";
   const lotId = params.lot?.trim() ?? "";
+  const { sort, dir } = parseInventorySortParam(params.sort, params.dir);
 
   const pageSize = lotsPerPageFor(user.lotsPerPage);
   const filtersActive = Boolean(q || storage || condition || finish);
+  const listParams = { q, storage, condition, finish, sort, dir };
   if (lotId) {
-    const lotPage = await getInventoryLotPage(lotId, pageSize);
-    if (lotPage && (lotPage !== page || filtersActive)) {
-      redirect(buildCollectionHref({ page: lotPage, lot: lotId }));
+    const lotPage = await getInventoryLotPage(lotId, pageSize, { q, storage, condition, finish }, sort, dir);
+    if (lotPage && lotPage !== page) {
+      redirect(buildCollectionHref({ ...listParams, page: lotPage, lot: lotId }));
     }
   }
 
   const { items, total, storageLocations } = await getInventory(page, pageSize, {
     q, storage, condition, finish,
-  });
+  }, sort, dir);
   const fx = await usdFx();
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const rows = items.map(toCollectionRow);
@@ -142,7 +137,7 @@ export default async function CollectionPage({
           </Link>
         </header>
 
-        <form className="panel mb-5 flex flex-wrap gap-3 p-4">
+        <form method="get" action="/collection" className="panel mb-5 flex flex-wrap gap-3 p-4">
           <label className="relative flex-1 min-w-[180px]">
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600" />
             <input
@@ -189,10 +184,26 @@ export default async function CollectionPage({
             <option value="ETCHED">{m.finish.ETCHED}</option>
           </select>
 
+          <CollectionSortSelect
+            name="sort"
+            defaultValue={inventorySortKey(sort, dir)}
+            aria-label={m.collection.sortBy}
+            className="rounded-xl border border-white/8 bg-black/30 pl-3 pr-8 py-2.5 text-sm outline-none focus:border-accent/40"
+          >
+            <option value="added:desc">{m.collection.sortAddedDesc}</option>
+            <option value="added:asc">{m.collection.sortAddedAsc}</option>
+            <option value="name:asc">{m.collection.sortNameAsc}</option>
+            <option value="name:desc">{m.collection.sortNameDesc}</option>
+            <option value="set:asc">{m.collection.sortSetAsc}</option>
+            <option value="set:desc">{m.collection.sortSetDesc}</option>
+            <option value="value:desc">{m.collection.sortValueDesc}</option>
+            <option value="value:asc">{m.collection.sortValueAsc}</option>
+          </CollectionSortSelect>
+
           <div className="flex gap-2">
             <button type="submit" className="button-primary text-sm">{m.common.search}</button>
             {filtersActive && (
-              <Link href="/collection" className="panel px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
+              <Link href={buildCollectionHref({ sort, dir })} className="panel px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
                 {m.collection.clearAll}
               </Link>
             )}
@@ -204,16 +215,18 @@ export default async function CollectionPage({
           currency={user.preferredCurrency}
           fx={fx}
           filtersActive={filtersActive}
-          currentQ={q}
           storageLocations={storageLocations}
-          listHref={buildCollectionHref({ page, q, storage, condition, finish })}
+          sort={sort}
+          dir={dir}
+          listParams={{ ...listParams, page }}
+          listHref={buildCollectionHref({ ...listParams, page })}
           initialLotId={lotId || undefined}
         />
 
         {pages > 1 && (
           <nav className="mt-5 flex justify-end gap-2 text-sm">
             {page > 1 && (
-              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page - 1, q, storage, condition, finish })}>
+              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ ...listParams, page: page - 1 })}>
                 {m.common.previous}
               </Link>
             )}
@@ -221,7 +234,7 @@ export default async function CollectionPage({
               {interpolate(m.common.pageOf, { page, pages })}
             </span>
             {page < pages && (
-              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ page: page + 1, q, storage, condition, finish })}>
+              <Link className="panel px-4 py-2 hover:bg-white/4 transition-colors" href={buildCollectionHref({ ...listParams, page: page + 1 })}>
                 {m.common.next}
               </Link>
             )}

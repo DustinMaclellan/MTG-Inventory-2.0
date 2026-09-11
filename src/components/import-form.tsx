@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, type DragEvent } from "react";
 import type { Finish } from "@prisma/client";
 import { ChevronDown } from "lucide-react";
 import {
@@ -16,6 +16,61 @@ const template = `Deck
 4 Mana Crypt (2XM) 11
 1 Sol Ring (CMM) 410 foil
 1 Rhystic Study`;
+
+const IMPORT_DRAFT_KEY = "mystic-ledger.import-draft";
+const IMPORT_DRAFT_MAX = 2_000_000;
+
+type ImportDraft = { list: string; fileName: string | null };
+
+function readImportDraft(): ImportDraft | null {
+  try {
+    const raw = sessionStorage.getItem(IMPORT_DRAFT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ImportDraft;
+    if (typeof parsed.list !== "string") return null;
+    return {
+      list: parsed.list,
+      fileName: typeof parsed.fileName === "string" ? parsed.fileName : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeImportDraft(draft: ImportDraft) {
+  try {
+    if (draft.list.length > IMPORT_DRAFT_MAX) return;
+    sessionStorage.setItem(IMPORT_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Ignore quota or private-mode failures.
+  }
+}
+
+function dropTargetProps(onActive: (active: boolean) => void, onFile: (file: File) => void) {
+  return {
+    onDragEnter(event: DragEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      onActive(true);
+    },
+    onDragOver(event: DragEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = "copy";
+      onActive(true);
+    },
+    onDragLeave(event: DragEvent) {
+      if (!event.currentTarget.contains(event.relatedTarget as Node)) onActive(false);
+    },
+    onDrop(event: DragEvent) {
+      event.preventDefault();
+      event.stopPropagation();
+      onActive(false);
+      const file = event.dataTransfer.files[0];
+      if (file) onFile(file);
+    },
+  };
+}
 
 type ImportCandidate = NonNullable<ImportPreviewState["choices"]>[number]["candidates"][number];
 
@@ -113,6 +168,29 @@ export function ImportForm() {
   const [finishPicks, setFinishPicks] = useState<Record<number, Finish>>({});
   const [openRow, setOpenRow] = useState<number | null>(null);
   const [list, setList] = useState(template);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [dropOn, setDropOn] = useState<"file" | "paste" | null>(null);
+  const [draftReady, setDraftReady] = useState(false);
+
+  async function applyImportFile(file: File | undefined) {
+    if (!file) return;
+    setList(await file.text());
+    setFileName(file.name);
+  }
+
+  useEffect(() => {
+    const draft = readImportDraft();
+    if (draft) {
+      setList(draft.list);
+      setFileName(draft.fileName);
+    }
+    setDraftReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    writeImportDraft({ list, fileName });
+  }, [draftReady, fileName, list]);
 
   useEffect(() => {
     setPicks({});
@@ -153,12 +231,38 @@ export function ImportForm() {
       <form action={action} className="panel p-5 lg:sticky lg:top-4">
         <label className="text-sm font-medium">{m.imports.listData}</label>
         <p className="mt-1 text-xs leading-5 text-zinc-500">{m.imports.listHint}</p>
+        <label
+          className={`mt-3 flex min-w-0 cursor-pointer items-center gap-2 rounded-xl border border-dashed px-3 py-2.5 text-xs transition-colors ${
+            dropOn === "file"
+              ? "border-accent/50 bg-accent/8 text-zinc-300"
+              : "border-white/12 bg-black/20 text-zinc-400 hover:border-white/20"
+          }`}
+          {...dropTargetProps((active) => setDropOn(active ? "file" : null), applyImportFile)}
+        >
+          <span className="shrink-0 font-medium text-zinc-300">{m.imports.chooseFile}</span>
+          <span className="min-w-0 truncate">
+            {fileName ? interpolate(m.imports.loadedFile, { name: fileName }) : m.imports.chooseFileHint}
+          </span>
+          <input
+            type="file"
+            accept=".csv,.txt,text/csv,text/plain"
+            className="sr-only"
+            onChange={async (event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              await applyImportFile(file);
+            }}
+          />
+        </label>
         <textarea
           name="csv"
-          className="field mt-3 min-h-72 resize-y font-mono text-xs leading-6"
+          className={`field mt-3 min-h-72 resize-y font-mono text-xs leading-6 ${
+            dropOn === "paste" ? "border-accent/50" : ""
+          }`}
           placeholder={m.imports.listPlaceholder}
           value={list}
           onChange={(event) => setList(event.target.value)}
+          {...dropTargetProps((active) => setDropOn(active ? "paste" : null), applyImportFile)}
         />
         <button disabled={pending} className="button-primary mt-4 text-sm">
           {pending ? m.imports.checking : m.imports.preview}
