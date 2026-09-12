@@ -43,6 +43,7 @@ Stripe and Resend are optional for local inventory work. Checkout and password-r
 - Browse the collection with search, filters, sort, pagination, and bulk edit / delete
 - Track storage by binder, box, or shelf
 - Dashboard with market value, cost basis, unrealized gain, recently added, and the three largest positions (opens that lot in the collection list)
+- Analytics: value over time (today’s cards at past prices), set/finish/condition/storage breakdowns, largest lots, and movers
 - Deck builder with owned vs missing per printing and finish
 - CSV import (with review) and export for the full collection, one binder, or one deck (Moxfield, Archidekt, ManaBox, and others)
 - Settings in four sections:
@@ -53,7 +54,7 @@ Stripe and Resend are optional for local inventory work. Checkout and password-r
 - Subscribe through Stripe Checkout; manage billing in the Stripe Customer Portal
 - Reset a forgotten password
 
-Analytics and Transactions are listed in the app as coming later. They are not live.
+Transactions is listed in the app as coming later. It is not live.
 
 Prices come from Scryfall and are stored locally. The browser never calls Scryfall.
 

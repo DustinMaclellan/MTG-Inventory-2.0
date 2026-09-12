@@ -436,6 +436,7 @@ export async function addAllMissingToCollectionAction(
   revalidatePath(`/decks/${deck.id}`);
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/storage");
   return { notice: interpolate(m.decks.addedMissing, { count: added }) };
 }

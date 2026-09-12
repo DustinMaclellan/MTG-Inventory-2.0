@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, Clock3, Plus, Search, Sparkles } from "lucide-react";
+import { ArrowUpRight, BarChart3, Clock3, Plus, Search, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { dateLocale, getMessages, interpolate, isLocale, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
@@ -37,6 +37,13 @@ export default async function DashboardPage() {
             <h1 className="mt-0.5 text-2xl font-semibold tracking-tight">{m.dashboard.yourCollection}</h1>
           </div>
           <div className="flex gap-2">
+            <Link
+              href="/analytics"
+              className="panel flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+            >
+              <BarChart3 size={16} />
+              {m.dashboard.analytics}
+            </Link>
             <Link
               href="/collection"
               className="panel flex items-center gap-2 px-4 py-2.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"

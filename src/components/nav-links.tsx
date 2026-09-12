@@ -24,7 +24,7 @@ export function NavLinks() {
     { href: "/add", label: m.nav.addCards, icon: PlusCircle },
     { href: "/imports", label: m.nav.importExport, icon: FileUp },
     { href: "/decks", label: m.nav.decks, icon: Boxes },
-    { href: "/analytics", label: m.nav.analytics, icon: BarChart3, disabled: true },
+    { href: "/analytics", label: m.nav.analytics, icon: BarChart3 },
     { href: "/transactions", label: m.nav.transactions, icon: CreditCard, disabled: true },
   ];
 
@@ -67,6 +67,7 @@ export function MobileNav() {
   const navigation = [
     { href: "/dashboard", label: m.nav.dashboard, icon: LayoutDashboard },
     { href: "/collection", label: m.nav.collection, icon: Library },
+    { href: "/analytics", label: m.nav.analytics, icon: BarChart3 },
     { href: "/storage", label: m.nav.storage, icon: Archive },
     { href: "/add", label: m.nav.addCards, icon: PlusCircle },
   ];
@@ -79,7 +80,7 @@ export function MobileNav() {
           <Link
             key={href}
             href={href}
-            className={`flex flex-col items-center gap-1 rounded-lg px-4 py-1.5 text-[10px] font-medium transition-colors ${
+            className={`flex flex-col items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors ${
               active ? "text-accent" : "text-zinc-500"
             }`}
           >

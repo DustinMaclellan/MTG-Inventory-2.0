@@ -13,11 +13,11 @@
 
 Public: `/`, `/pricing`, `/terms`, `/privacy`, `/login`, `/register`, `/forgot-password`, `/reset-password`.
 
-App (session + entitlement): `/dashboard`, `/collection`, `/storage`, `/add`, `/imports`, `/decks`, `/subscribe`, `/settings` (redirects to `/settings/profile`). Settings sections: `/settings/profile`, `/settings/preferences`, `/settings/billing`, `/settings/security`.
+App (session + entitlement): `/dashboard`, `/collection`, `/storage`, `/add`, `/imports`, `/decks`, `/analytics`, `/subscribe`, `/settings` (redirects to `/settings/profile`). Settings sections: `/settings/profile`, `/settings/preferences`, `/settings/billing`, `/settings/security`.
 
 API: `/api/export`, `/api/deck-search`, `/api/cron/price-sync`, `/api/cron/catalog-sync`, `/api/stripe/webhook`.
 
-Analytics and Transactions appear in navigation as coming later. They have no product routes.
+`/analytics` reads current holdings plus `PriceHistory` to mark today’s cards at past prices. Transactions appears in navigation as coming later and has no product route.
 
 ## Data identity
 
@@ -41,7 +41,7 @@ Accent CSS variables live on `<html data-accent>`. Gains stay emerald and losses
 
 Scryfall USD and EUR are persisted in `CurrentPrice` and deduplicated into one `PriceHistory` row per printing/provider/finish/currency/day. Missing prices remain `null`; the application never substitutes zero or a synthetic condition adjustment.
 
-Owned printings are refreshed daily via Scryfall `/cards/collection` (`/api/cron/price-sync`). Newest paper printings are synced separately (`/api/cron/catalog-sync`). Dashboard and collection pages read stored prices only.
+Owned printings are refreshed daily via Scryfall `/cards/collection` (`/api/cron/price-sync`). Newest paper printings are synced separately (`/api/cron/catalog-sync`). Dashboard, collection, and analytics pages read stored prices only. Analytics never invents a historical inventory — the trend is today’s lots valued at the last known price on each day.
 
 CAD is not published by Scryfall. When a user prefers CAD, market value reads USD and converts with the ECB USD/CAD rate (Frankfurter). Paid amounts convert to the display currency with the current USD exchange rate (USD ↔ CAD ↔ EUR). If a rate is unavailable, CAD market falls back to the USD amount.
 

@@ -272,6 +272,7 @@ export async function updateProfileAction(_: FormState, formData: FormData): Pro
   });
   revalidatePath("/settings", "layout");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   return { notice: (await t()).settings.nameSaved };
 }
 
@@ -300,6 +301,7 @@ export async function updatePreferencesAction(_: FormState, formData: FormData):
   });
   revalidatePath("/", "layout");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/collection");
   revalidatePath("/storage");
   revalidatePath("/add");
@@ -405,6 +407,7 @@ export async function addInventoryAction(formData: FormData) {
     },
   });
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/collection");
   revalidatePath("/storage");
   revalidatePath("/add");
@@ -424,6 +427,7 @@ export async function deleteInventoryAction(formData: FormData) {
     where: { id: itemId, collection: { userId: user.id } },
   });
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/collection");
   revalidatePath("/storage");
   if (formData.get("returnTo") === "/collection") redirect("/collection");
@@ -482,6 +486,7 @@ export async function updateInventoryAction(_: FormState, formData: FormData): P
   });
 
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/collection");
   revalidatePath(`/collection/${item.id}`);
   revalidatePath("/storage");
@@ -551,6 +556,7 @@ export async function bulkUpdateInventoryAction(
 
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/storage");
   return { updated };
 }
@@ -590,6 +596,7 @@ export async function renameStorageLocationAction(
   revalidatePath("/storage");
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   return {};
 }
 
@@ -612,6 +619,7 @@ export async function deleteStorageLocationAction(formData: FormData): Promise<v
   revalidatePath("/storage");
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
 }
 
 export async function mergeStorageLocationsAction(
@@ -646,6 +654,7 @@ export async function mergeStorageLocationsAction(
   revalidatePath("/storage");
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   return { notice: m.storage.mergeDone };
 }
 
@@ -660,6 +669,7 @@ export async function bulkDeleteInventoryAction(
   });
   revalidatePath("/collection");
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/storage");
   return { deleted: result.count };
 }
@@ -750,6 +760,7 @@ export async function commitImportAction(formData: FormData) {
     ),
   );
   revalidatePath("/dashboard");
+  revalidatePath("/analytics");
   revalidatePath("/collection");
   redirect("/collection?imported=1");
 }

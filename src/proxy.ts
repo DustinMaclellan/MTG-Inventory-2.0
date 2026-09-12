@@ -11,6 +11,7 @@ const protectedPaths = [
   "/settings",
   "/subscribe",
   "/decks",
+  "/analytics",
 ];
 
 function isProtected(pathname: string) {
@@ -65,6 +66,8 @@ export const config = {
     "/subscribe/:path*",
     "/decks",
     "/decks/:path*",
+    "/analytics",
+    "/analytics/:path*",
     "/api/export",
     "/api/deck-search",
   ],
