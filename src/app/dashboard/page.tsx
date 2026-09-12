@@ -2,9 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight, BarChart3, Clock3, Plus, Search, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
-import { dateLocale, getMessages, interpolate, isLocale, type Messages } from "@/i18n";
+import { dateLocale, getMessages, interpolate, isLocale, pickPlural, type Messages } from "@/i18n";
 import { requireEntitlement } from "@/lib/auth";
-import { formatMoney } from "@/lib/money";
+import { displayCostBasis, formatMoney, unrealizedDisplay } from "@/lib/money";
 import { getDashboard } from "@/services/inventory";
 
 export const metadata = { title: "Dashboard" };
@@ -26,7 +26,20 @@ export default async function DashboardPage() {
   const m = getMessages(locale);
   const { items, totals, uniqueCards, largestPositions, lastPriceUpdate } = await getDashboard();
   const currency = user.preferredCurrency;
-  const gainPositive = totals.unrealizedGain !== null && totals.unrealizedGain >= 0;
+  const gain = unrealizedDisplay(
+    totals,
+    (value) => formatMoney(value, currency, locale),
+    { unrealized: m.dashboard.unrealized, addPaid: m.dashboard.addPaidToSeeGain },
+  );
+  const costHint =
+    totals.totalQuantity === 0
+      ? null
+      : totals.costedQuantity === 0
+        ? m.dashboard.costNone
+        : pickPlural(totals.costedQuantity, m.dashboard.costLogged, m.dashboard.costLoggedPlural, {
+            count: totals.costedQuantity,
+            total: totals.totalQuantity,
+          });
 
   return (
     <AppShell user={user}>
@@ -72,12 +85,14 @@ export default async function DashboardPage() {
           <div className="mt-5 flex flex-wrap gap-4 text-sm">
             <span
               className={`flex items-center gap-1.5 font-medium ${
-                gainPositive ? "text-emerald-400" : "text-rose-400"
+                gain.tone === "up"
+                  ? "text-emerald-400"
+                  : gain.tone === "down"
+                    ? "text-rose-400"
+                    : "text-zinc-500"
               }`}
             >
-              {totals.unrealizedGain === null
-                ? "—"
-                : `${gainPositive ? "+" : ""}${formatMoney(totals.unrealizedGain, currency, locale)} ${m.dashboard.unrealized}`}
+              {gain.text}
             </span>
             <span className="flex items-center gap-1.5 text-zinc-500">
               <Clock3 size={13} />
@@ -91,25 +106,27 @@ export default async function DashboardPage() {
         </section>
 
         <section className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {[
-            { label: m.dashboard.totalCards, value: totals.totalQuantity.toLocaleString(dateLocale(locale)) },
-            { label: m.dashboard.uniqueCards, value: uniqueCards.toLocaleString(dateLocale(locale)) },
-            { label: m.dashboard.costBasis, value: formatMoney(totals.costBasis, currency, locale) },
-            {
-              label: m.dashboard.pricedCopies,
-              value:
-                totals.totalQuantity > 0
-                  ? `${totals.pricedQuantity} / ${totals.totalQuantity}`
-                  : "—",
-            },
-          ].map(({ label, value }) => (
-            <article key={label} className="panel p-5">
-              <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
-                {label}
-              </p>
-              <p className="mt-3 text-[1.375rem] font-semibold leading-none">{value}</p>
-            </article>
-          ))}
+          <Stat
+            label={m.dashboard.totalCards}
+            value={totals.totalQuantity.toLocaleString(dateLocale(locale))}
+          />
+          <Stat
+            label={m.dashboard.uniqueCards}
+            value={uniqueCards.toLocaleString(dateLocale(locale))}
+          />
+          <Stat
+            label={m.dashboard.costBasis}
+            value={formatMoney(displayCostBasis(totals), currency, locale)}
+            hint={costHint}
+          />
+          <Stat
+            label={m.dashboard.pricedCopies}
+            value={
+              totals.totalQuantity > 0
+                ? `${totals.pricedQuantity} / ${totals.totalQuantity}`
+                : "—"
+            }
+          />
         </section>
 
         <section className="mt-5 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
@@ -202,6 +219,16 @@ export default async function DashboardPage() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
+  return (
+    <article className="panel p-5">
+      <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">{label}</p>
+      <p className="mt-3 text-[1.375rem] font-semibold leading-none">{value}</p>
+      {hint ? <p className="mt-2 text-xs text-zinc-600">{hint}</p> : null}
+    </article>
   );
 }
 

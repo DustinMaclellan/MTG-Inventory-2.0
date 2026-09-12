@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Clock3, Plus, Sparkles } from "lucide-react";
 import { AnalyticsBreakdown, AnalyticsTrend } from "@/components/analytics-charts";
 import { AppShell } from "@/components/app-shell";
-import { dateLocale, getMessages, interpolate, isLocale, type Messages } from "@/i18n";
+import { dateLocale, getMessages, interpolate, isLocale, pickPlural, type Messages } from "@/i18n";
 import { formatUtcDayLabel } from "@/lib/analytics";
 import {
   formatMoverPercent,
@@ -12,7 +12,7 @@ import {
   splitMovers,
   translateBreakdown,
 } from "@/lib/analytics-view";
-import { formatMoney } from "@/lib/money";
+import { displayCostBasis, formatMoney, unrealizedDisplay } from "@/lib/money";
 import { getAnalytics, type AnalyticsMover } from "@/services/analytics";
 
 export const metadata = { title: "Analytics" };
@@ -36,9 +36,20 @@ export default async function AnalyticsPage() {
   const m = getMessages(locale);
   const currency = user.preferredCurrency;
   const numbers = dateLocale(locale);
-  const gainToneClass = gainTone(totals.unrealizedGain);
+  const gain = unrealizedDisplay(
+    totals,
+    (value) => formatMoney(value, currency, locale),
+    { unrealized: m.dashboard.unrealized, addPaid: m.dashboard.addPaidToSeeGain },
+  );
   const trendTone = gainTone(seriesDelta?.change ?? null);
   const { gained, lost } = splitMovers(movers);
+  const costHint =
+    totals.costedQuantity === 0
+      ? m.dashboard.costNone
+      : pickPlural(totals.costedQuantity, m.dashboard.costLogged, m.dashboard.costLoggedPlural, {
+          count: totals.costedQuantity,
+          total: totals.totalQuantity,
+        });
 
   return (
     <AppShell user={user}>
@@ -73,14 +84,16 @@ export default async function AnalyticsPage() {
               <div className="mt-5 flex flex-wrap gap-4 text-sm">
                 <span
                   className={`flex items-center gap-1.5 font-medium ${
-                    gainToneClass === "up" ? "text-emerald-400" : "text-rose-400"
+                    gain.tone === "up"
+                      ? "text-emerald-400"
+                      : gain.tone === "down"
+                        ? "text-rose-400"
+                        : "text-zinc-500"
                   }`}
                 >
-                  {totals.unrealizedGain === null
-                    ? "—"
-                    : `${gainToneClass === "up" ? "+" : ""}${formatMoney(totals.unrealizedGain, currency, locale)} ${m.dashboard.unrealized}`}
+                  {gain.text}
                 </span>
-                {seriesDelta ? (
+                {seriesDelta && seriesDelta.change !== 0 ? (
                   <span className={`font-medium ${trendTone === "up" ? "text-emerald-400" : "text-rose-400"}`}>
                     {`${trendTone === "up" ? "+" : ""}${formatMoney(seriesDelta.change, currency, locale)} ${interpolate(
                       m.analytics.changeSince,
@@ -100,31 +113,23 @@ export default async function AnalyticsPage() {
             </section>
 
             <section className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {[
-                {
-                  label: m.dashboard.totalCards,
-                  value: totals.totalQuantity.toLocaleString(numbers),
-                },
-                {
-                  label: m.dashboard.costBasis,
-                  value: formatMoney(totals.costBasis, currency, locale),
-                },
-                {
-                  label: m.analytics.avgLot,
-                  value: formatMoney(averageLot, currency, locale),
-                },
-                {
-                  label: m.analytics.topShare,
-                  value: formatShare(concentration.share, locale),
-                },
-              ].map(({ label, value }) => (
-                <article key={label} className="panel p-5">
-                  <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">
-                    {label}
-                  </p>
-                  <p className="mt-3 text-[1.375rem] font-semibold leading-none">{value}</p>
-                </article>
-              ))}
+              <Stat
+                label={m.dashboard.totalCards}
+                value={totals.totalQuantity.toLocaleString(numbers)}
+              />
+              <Stat
+                label={m.dashboard.costBasis}
+                value={formatMoney(displayCostBasis(totals), currency, locale)}
+                hint={costHint}
+              />
+              <Stat
+                label={m.analytics.avgLot}
+                value={formatMoney(averageLot, currency, locale)}
+              />
+              <Stat
+                label={m.analytics.topShare}
+                value={formatShare(concentration.share, locale)}
+              />
             </section>
 
             <section className="mt-5">
@@ -292,6 +297,16 @@ function MoverList({
       ) : (
         <p className="px-5 py-8 text-sm leading-6 text-zinc-500">{empty}</p>
       )}
+    </article>
+  );
+}
+
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
+  return (
+    <article className="panel p-5">
+      <p className="text-[11px] font-medium uppercase tracking-widest text-zinc-600">{label}</p>
+      <p className="mt-3 text-[1.375rem] font-semibold leading-none">{value}</p>
+      {hint ? <p className="mt-2 text-xs text-zinc-600">{hint}</p> : null}
     </article>
   );
 }

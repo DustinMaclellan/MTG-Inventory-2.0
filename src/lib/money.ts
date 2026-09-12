@@ -12,13 +12,23 @@ export type PortfolioTotals = {
   unrealizedGain: number | null;
   pricedQuantity: number;
   totalQuantity: number;
+  costedQuantity: number;
+  costedMarketValue: number | null;
+  costCoverage: number | null;
 };
+
+/** Share of priced market that also has a logged paid price. */
+export const COST_COVERAGE_MIN = 0.85;
 
 export function calculatePortfolio(lines: ValuationLine[]): PortfolioTotals {
   let marketValue = 0;
   let costBasis = 0;
   let pricedQuantity = 0;
   let totalQuantity = 0;
+  let costedQuantity = 0;
+  let costedMarket = 0;
+  let pairedCost = 0;
+  let pairedQuantity = 0;
 
   for (const line of lines) {
     if (!Number.isInteger(line.quantity) || line.quantity < 0) {
@@ -26,22 +36,65 @@ export function calculatePortfolio(lines: ValuationLine[]): PortfolioTotals {
     }
 
     totalQuantity += line.quantity;
-    costBasis += (line.purchasePrice ?? 0) * line.quantity;
+    const paid = line.purchasePrice;
+    if (paid != null) {
+      costBasis += paid * line.quantity;
+      costedQuantity += line.quantity;
+    }
 
     if (line.marketPrice !== null) {
       marketValue += line.marketPrice * line.quantity;
       pricedQuantity += line.quantity;
+      if (paid != null) {
+        costedMarket += line.marketPrice * line.quantity;
+        pairedCost += paid * line.quantity;
+        pairedQuantity += line.quantity;
+      }
     }
   }
 
   const hasPrices = pricedQuantity > 0;
+  const hasPaired = pairedQuantity > 0;
   return {
     marketValue: hasPrices ? marketValue : null,
     costBasis,
-    unrealizedGain: hasPrices ? marketValue - costBasis : null,
+    unrealizedGain: hasPaired ? costedMarket - pairedCost : null,
     pricedQuantity,
     totalQuantity,
+    costedQuantity,
+    costedMarketValue: hasPaired ? costedMarket : null,
+    costCoverage: hasPrices && marketValue > 0 ? costedMarket / marketValue : null,
   };
+}
+
+export function displayCostBasis(totals: PortfolioTotals) {
+  return totals.costedQuantity > 0 ? totals.costBasis : null;
+}
+
+export function canShowUnrealized(totals: PortfolioTotals) {
+  return (
+    totals.unrealizedGain !== null &&
+    totals.costCoverage !== null &&
+    totals.costCoverage >= COST_COVERAGE_MIN
+  );
+}
+
+export function unrealizedDisplay(
+  totals: PortfolioTotals,
+  format: (value: number) => string,
+  labels: { unrealized: string; addPaid: string },
+): { text: string; tone: "up" | "down" | "muted" } {
+  if (canShowUnrealized(totals) && totals.unrealizedGain !== null) {
+    const up = totals.unrealizedGain >= 0;
+    return {
+      text: `${up ? "+" : ""}${format(totals.unrealizedGain)} ${labels.unrealized}`,
+      tone: up ? "up" : "down",
+    };
+  }
+  if (totals.marketValue != null) {
+    return { text: labels.addPaid, tone: "muted" };
+  }
+  return { text: "—", tone: "muted" };
 }
 
 export type DisplayCurrency = "USD" | "CAD" | "EUR";

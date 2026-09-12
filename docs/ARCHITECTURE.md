@@ -45,6 +45,8 @@ Owned printings are refreshed daily via Scryfall `/cards/collection` (`/api/cron
 
 CAD is not published by Scryfall. When a user prefers CAD, market value reads USD and converts with the ECB USD/CAD rate (Frankfurter). Paid amounts convert to the display currency with the current USD exchange rate (USD ↔ CAD ↔ EUR). If a rate is unavailable, CAD market falls back to the USD amount.
 
+Unrealized gain is only the lots that have both a market price and a logged paid price. Missing paid is unknown, not $0. The Dashboard and Analytics hero hide that gain until paid prices cover at least 85% of priced market value.
+
 ## Catalog synchronization
 
 `npm run catalog:sync` loads Scryfall’s `default_cards` bulk file into PostgreSQL (paper printings only, with `rawPrices`). After that, Add Cards and deck search query the local catalog only. The daily `/api/cron/catalog-sync` job imports bulk only if the catalog is still small; otherwise it fetches a few newest-prints pages. Live Scryfall search is a cold-start fallback when fewer than 1,000 printings are stored.
